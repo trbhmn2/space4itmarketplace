@@ -116,7 +116,7 @@ export async function getUserThreads(
     hostRequestIds = (hostRequests ?? []).map((r) => r.id);
   }
 
-  const allRequestIds = [...new Set([...storerRequestIds, ...hostRequestIds])];
+  const allRequestIds = Array.from(new Set([...storerRequestIds, ...hostRequestIds]));
 
   // Get messages for these booking requests to find threads
   let requestThreads: { thread_id: string; booking_request_id: string }[] = [];
@@ -141,7 +141,7 @@ export async function getUserThreads(
 
   const threads: ThreadSummary[] = [];
 
-  for (const [threadId, bookingRequestId] of threadMap) {
+  for (const [threadId, bookingRequestId] of Array.from(threadMap.entries())) {
     // Last message
     const { data: lastMsg } = await supabase
       .from("messages")
@@ -159,9 +159,9 @@ export async function getUserThreads(
       .select("sender_id")
       .eq("thread_id", threadId);
 
-    const participantIds = [
-      ...new Set((participants ?? []).map((p) => p.sender_id)),
-    ];
+    const participantIds = Array.from(
+      new Set((participants ?? []).map((p) => p.sender_id))
+    );
     const otherUserId = participantIds.find((id) => id !== userId);
 
     // If no other participant found, try to find from booking request

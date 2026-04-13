@@ -36,7 +36,7 @@ const storerLinks: NavItem[] = [
   },
   {
     label: "Messages",
-    href: "/dashboard/storer#messages",
+    href: "/dashboard/messages",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -86,6 +86,15 @@ const hostLinks: NavItem[] = [
         <line x1="16" y1="2" x2="16" y2="6" />
         <line x1="8" y1="2" x2="8" y2="6" />
         <line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+    ),
+  },
+  {
+    label: "Messages",
+    href: "/dashboard/messages",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
     ),
   },
@@ -155,13 +164,19 @@ export default function DashboardLayout({
               Storer
             </p>
             <nav className="space-y-1">
-              {storerLinks.map((item) => (
-                <SidebarLink
-                  key={item.href}
-                  item={item}
-                  isActive={isStorer && item.href === "/dashboard/storer" ? pathname === "/dashboard/storer" : false}
-                />
-              ))}
+              {storerLinks.map((item) => {
+                const active =
+                  item.href === "/dashboard/messages"
+                    ? pathname.startsWith("/dashboard/messages")
+                    : isStorer && item.href === "/dashboard/storer" && pathname === "/dashboard/storer";
+                return (
+                  <SidebarLink
+                    key={item.href}
+                    item={item}
+                    isActive={active}
+                  />
+                );
+              })}
             </nav>
           </div>
 
@@ -174,13 +189,19 @@ export default function DashboardLayout({
               Host
             </p>
             <nav className="space-y-1">
-              {hostLinks.map((item) => (
-                <SidebarLink
-                  key={item.href}
-                  item={item}
-                  isActive={isHost && item.href === "/dashboard/host" ? pathname === "/dashboard/host" : false}
-                />
-              ))}
+              {hostLinks.map((item) => {
+                const active =
+                  item.href === "/dashboard/messages"
+                    ? pathname.startsWith("/dashboard/messages")
+                    : isHost && item.href === "/dashboard/host" && pathname === "/dashboard/host";
+                return (
+                  <SidebarLink
+                    key={item.href}
+                    item={item}
+                    isActive={active}
+                  />
+                );
+              })}
             </nav>
           </div>
         </aside>
@@ -195,9 +216,12 @@ export default function DashboardLayout({
       <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-primary/10 bg-white px-2 py-2 md:hidden">
         <div className="flex items-center justify-around">
           {(isHost ? hostLinks : storerLinks).map((item) => {
-            const active = isHost
-              ? item.href === "/dashboard/host" && pathname === "/dashboard/host"
-              : item.href === "/dashboard/storer" && pathname === "/dashboard/storer";
+            const active =
+              item.href === "/dashboard/messages"
+                ? pathname.startsWith("/dashboard/messages")
+                : isHost
+                  ? item.href === "/dashboard/host" && pathname === "/dashboard/host"
+                  : item.href === "/dashboard/storer" && pathname === "/dashboard/storer";
             return (
               <BottomNavLink key={item.href} item={item} isActive={active} />
             );

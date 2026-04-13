@@ -41,10 +41,10 @@ export default function UnreadBadge() {
       }
 
       let count = 0;
-      for (const [threadId, latestTs] of threadLatest) {
+      Array.from(threadLatest.entries()).forEach(([threadId, latestTs]) => {
         const lastRead = getLastReadTimestamp(threadId);
         if (latestTs > lastRead) count++;
-      }
+      });
 
       setUnreadCount(count);
     }
