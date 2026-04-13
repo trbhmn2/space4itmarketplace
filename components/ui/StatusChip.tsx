@@ -6,6 +6,8 @@ type Status =
   | "active"
   | "collection_due"
   | "completed"
+  | "cancelled"
+  | "reserved"
   | "deposit_paid"
   | "fully_paid"
   | "refunded"
@@ -22,6 +24,8 @@ const statusConfig: Record<
   active: { bg: "bg-teal-50", text: "text-teal-700", dot: "bg-teal-400" },
   collection_due: { bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-400" },
   completed: { bg: "bg-gray-50", text: "text-gray-600", dot: "bg-gray-400" },
+  cancelled: { bg: "bg-gray-50", text: "text-gray-500", dot: "bg-gray-400" },
+  reserved: { bg: "bg-indigo-50", text: "text-indigo-700", dot: "bg-indigo-400" },
   deposit_paid: { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-400" },
   fully_paid: { bg: "bg-green-50", text: "text-green-700", dot: "bg-green-400" },
   refunded: { bg: "bg-red-50", text: "text-red-700", dot: "bg-red-400" },
