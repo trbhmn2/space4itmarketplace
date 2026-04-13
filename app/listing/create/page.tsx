@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
@@ -61,6 +61,34 @@ const INITIAL_FORM_DATA: ListingFormData = {
   collectionEnd: "",
   photoUrls: [],
 };
+
+const STORAGE_KEY = "space4it-listing-draft";
+
+function loadDraft(): ListingFormData | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as ListingFormData;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(data: ListingFormData) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // quota exceeded or private browsing — silently ignore
+  }
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 // ─── Validation helpers ──────────────────────────────────────────────
 
@@ -1015,13 +1043,60 @@ function Step5Review({
 export default function CreateListingPage() {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isHost, setIsHost] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<ListingFormData>(INITIAL_FORM_DATA);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // Restore draft from localStorage on mount
+  useEffect(() => {
+    const draft = loadDraft();
+    if (draft) {
+      setFormData(draft);
+    }
+    setDraftRestored(true);
+  }, []);
+
+  // Persist to localStorage on every form change (after initial restore)
+  useEffect(() => {
+    if (draftRestored) {
+      saveDraft(formData);
+    }
+  }, [formData, draftRestored]);
+
+  // Role-based access: check if user is a host
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      router.replace("/auth");
+      return;
+    }
+
+    async function checkHostRole() {
+      const { data } = await supabase
+        .from("users")
+        .select("role_host")
+        .eq("id", user!.id)
+        .single();
+
+      if (data?.role_host) {
+        setIsHost(true);
+      } else {
+        router.replace("/dashboard/storer");
+        return;
+      }
+      setAuthChecked(true);
+    }
+
+    checkHostRole();
+  }, [user, authLoading, supabase, router]);
 
   const updateFormData = useCallback(
     <K extends keyof ListingFormData>(key: K, value: ListingFormData[K]) => {
@@ -1084,10 +1159,23 @@ export default function CreateListingPage() {
         return;
       }
 
+      clearDraft();
       router.push("/dashboard/host");
     },
     [user, supabase, formData, router]
   );
+
+  // Show loading spinner while checking auth
+  if (authLoading || !authChecked || !isHost) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-accent" />
+          <p className="text-sm text-primary/50">Checking access...</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-background px-4 py-8">
