@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
         set(name: string, value: string, options: CookieOptions) {
           cookieStore.set({ name, value, ...options });
         },
-        remove(name: string, options: CookieOptions) {
+        remove(name: string, _options: CookieOptions) {
           cookieStore.delete(name);
         },
       },
