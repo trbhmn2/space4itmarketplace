@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import UnreadBadge from "@/components/UnreadBadge";
 
 interface NavbarProps {
   isLoggedIn?: boolean;
@@ -60,12 +61,15 @@ export default function Navbar({
         <div className="hidden items-center gap-3 md:flex">
           {isLoggedIn ? (
             <div className="flex items-center gap-4">
-              <Link
-                href="/dashboard/storer"
-                className="text-sm font-medium text-primary/60 transition-colors hover:text-primary"
-              >
-                Dashboard
-              </Link>
+              <span className="relative">
+                <Link
+                  href="/dashboard/storer"
+                  className="text-sm font-medium text-primary/60 transition-colors hover:text-primary"
+                >
+                  Dashboard
+                </Link>
+                <UnreadBadge />
+              </span>
               <UserInitials name={userName || "User"} />
             </div>
           ) : (
@@ -141,13 +145,16 @@ export default function Navbar({
             {isLoggedIn ? (
               <div className="flex items-center gap-3 px-3 py-2">
                 <UserInitials name={userName || "User"} />
-                <Link
-                  href="/dashboard/storer"
-                  onClick={() => setMobileOpen(false)}
-                  className="text-sm font-medium text-primary"
-                >
-                  Dashboard
-                </Link>
+                <span className="relative">
+                  <Link
+                    href="/dashboard/storer"
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm font-medium text-primary"
+                  >
+                    Dashboard
+                  </Link>
+                  <UnreadBadge />
+                </span>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
