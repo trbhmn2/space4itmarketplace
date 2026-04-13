@@ -5,10 +5,14 @@ import BookingModal from "@/components/BookingModal";
 
 interface ListingBookingCTAProps {
   listingTitle: string;
+  listingId: string;
+  hostId: string;
 }
 
 export default function ListingBookingCTA({
   listingTitle,
+  listingId,
+  hostId,
 }: ListingBookingCTAProps) {
   const [showModal, setShowModal] = useState(false);
 
@@ -25,6 +29,8 @@ export default function ListingBookingCTA({
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         listingTitle={listingTitle}
+        listingId={listingId}
+        hostId={hostId}
       />
     </>
   );
