@@ -27,6 +27,14 @@ export interface Listing {
   created_at: string;
 }
 
+export interface ListingWithHost extends Listing {
+  users: {
+    name: string;
+    photo_url: string | null;
+    verified: boolean;
+  };
+}
+
 export interface BookingRequest {
   id: string;
   storer_id: string;
