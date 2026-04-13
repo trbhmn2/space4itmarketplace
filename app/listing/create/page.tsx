@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useCallback, useRef, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { useAuth } from "@/components/AuthProvider";
 
 const STEP_LABELS = [
   "Space Details",
@@ -809,12 +811,217 @@ function Step4Photos({
   );
 }
 
+// ─── Step 5 — Review & Publish ───────────────────────────────────────
+
+function ReviewSection({
+  title,
+  stepNumber,
+  onEdit,
+  children,
+}: {
+  title: string;
+  stepNumber: number;
+  onEdit: (step: number) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-primary/10 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-bold text-primary">{title}</h3>
+        <button
+          type="button"
+          onClick={() => onEdit(stepNumber)}
+          className="text-xs font-semibold text-accent hover:text-accent/80 transition-colors"
+        >
+          Edit
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Badge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent">
+      {children}
+    </span>
+  );
+}
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return "—";
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function Step5Review({
+  formData,
+  onBack,
+  goToStep,
+  onSubmit,
+  submitting,
+  submitError,
+}: {
+  formData: ListingFormData;
+  onBack: () => void;
+  goToStep: (step: number) => void;
+  onSubmit: (status: "active" | "draft") => void;
+  submitting: boolean;
+  submitError: string | null;
+}) {
+  const itemBadges: string[] = ["Standard Boxes"];
+  if (formData.acceptsSmallBulky) itemBadges.push("Small Bulky");
+  if (formData.acceptsLargeBulky) itemBadges.push("Large Bulky");
+  if (formData.acceptsBikes) itemBadges.push("Bikes");
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold text-primary">Review & Publish</h2>
+      <p className="mt-1 text-sm text-primary/60">Check everything looks right before publishing.</p>
+
+      <div className="mt-6 space-y-4">
+        {/* Space details */}
+        <ReviewSection title="Space Details" stepNumber={1} onEdit={goToStep}>
+          <dl className="space-y-2 text-sm">
+            <div>
+              <dt className="text-primary/50">Title</dt>
+              <dd className="font-medium text-primary">{formData.title || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-primary/50">Area</dt>
+              <dd className="font-medium text-primary">{formData.area || "—"}</dd>
+            </div>
+            {formData.floorLevel && (
+              <div>
+                <dt className="text-primary/50">Floor Level</dt>
+                <dd className="font-medium text-primary">{formData.floorLevel}</dd>
+              </div>
+            )}
+            {formData.accessNotes && (
+              <div>
+                <dt className="text-primary/50">Access Notes</dt>
+                <dd className="font-medium text-primary">{formData.accessNotes}</dd>
+              </div>
+            )}
+            {formData.description && (
+              <div>
+                <dt className="text-primary/50">Description</dt>
+                <dd className="font-medium text-primary">{formData.description}</dd>
+              </div>
+            )}
+          </dl>
+        </ReviewSection>
+
+        {/* Items */}
+        <ReviewSection title="What You Can Store" stepNumber={2} onEdit={goToStep}>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {itemBadges.map((b) => (
+              <Badge key={b}>{b}</Badge>
+            ))}
+          </div>
+          <dl className="space-y-2 text-sm">
+            <div>
+              <dt className="text-primary/50">Maximum Capacity</dt>
+              <dd className="font-medium text-primary">{formData.capacity || "—"} items</dd>
+            </div>
+            {formData.rules && (
+              <div>
+                <dt className="text-primary/50">House Rules</dt>
+                <dd className="font-medium text-primary">{formData.rules}</dd>
+              </div>
+            )}
+          </dl>
+        </ReviewSection>
+
+        {/* Availability */}
+        <ReviewSection title="Availability" stepNumber={3} onEdit={goToStep}>
+          <dl className="space-y-2 text-sm">
+            <div>
+              <dt className="text-primary/50">Drop-off Window</dt>
+              <dd className="font-medium text-primary">
+                {formatDate(formData.dropOffStart)} – {formatDate(formData.dropOffEnd)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-primary/50">Collection Window</dt>
+              <dd className="font-medium text-primary">
+                {formatDate(formData.collectionStart)} – {formatDate(formData.collectionEnd)}
+              </dd>
+            </div>
+          </dl>
+        </ReviewSection>
+
+        {/* Photos */}
+        <ReviewSection title="Photos" stepNumber={4} onEdit={goToStep}>
+          {formData.photoUrls.length === 0 ? (
+            <p className="text-sm text-primary/50">No photos uploaded yet.</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {formData.photoUrls.map((url) => (
+                <div key={url} className="aspect-square overflow-hidden rounded-lg border border-primary/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="Listing photo" className="h-full w-full object-cover" />
+                </div>
+              ))}
+            </div>
+          )}
+        </ReviewSection>
+      </div>
+
+      {submitError && (
+        <div className="mt-4 rounded-lg border border-action/30 bg-action/5 p-3">
+          <p className="text-sm text-action">{submitError}</p>
+        </div>
+      )}
+
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-between">
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={submitting}
+          className="rounded-lg bg-primary/5 px-5 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+        >
+          Back
+        </button>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => onSubmit("draft")}
+            disabled={submitting}
+            className="rounded-lg border border-primary/10 px-5 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 disabled:opacity-50"
+          >
+            {submitting ? "Saving..." : "Save as Draft"}
+          </button>
+          <button
+            type="button"
+            onClick={() => onSubmit("active")}
+            disabled={submitting}
+            className="rounded-lg bg-action px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-action/90 disabled:opacity-50"
+          >
+            {submitting ? "Publishing..." : "Publish Listing"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────
 
 export default function CreateListingPage() {
+  const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
+  const { user } = useAuth();
+
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<ListingFormData>(INITIAL_FORM_DATA);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const updateFormData = useCallback(
     <K extends keyof ListingFormData>(key: K, value: ListingFormData[K]) => {
@@ -836,6 +1043,52 @@ export default function CreateListingPage() {
     setCurrentStep((s) => Math.max(s - 1, 1));
   }, []);
 
+  const goToStep = useCallback((step: number) => {
+    setCurrentStep(step);
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (status: "active" | "draft") => {
+      if (!user) {
+        setSubmitError("You must be signed in to create a listing.");
+        return;
+      }
+
+      setSubmitting(true);
+      setSubmitError(null);
+
+      const itemCategories: string[] = ["boxes"];
+      if (formData.acceptsSmallBulky) itemCategories.push("small_bulky");
+      if (formData.acceptsLargeBulky) itemCategories.push("large_bulky");
+      if (formData.acceptsBikes) itemCategories.push("bikes");
+
+      const { error } = await supabase.from("listings").insert({
+        host_id: user.id,
+        title: formData.title,
+        area: formData.area,
+        item_categories: itemCategories,
+        capacity: Number(formData.capacity) || 1,
+        rules: formData.rules || null,
+        photos: formData.photoUrls,
+        availability_start: formData.dropOffStart,
+        availability_end: formData.collectionEnd,
+        accepts_bikes: formData.acceptsBikes,
+        accepts_bulky: formData.acceptsSmallBulky || formData.acceptsLargeBulky,
+        status,
+      });
+
+      setSubmitting(false);
+
+      if (error) {
+        setSubmitError(error.message || "Something went wrong. Please try again.");
+        return;
+      }
+
+      router.push("/dashboard/host");
+    },
+    [user, supabase, formData, router]
+  );
+
   return (
     <main className="min-h-screen bg-background px-4 py-8">
       <div className="mx-auto max-w-2xl">
@@ -855,26 +1108,17 @@ export default function CreateListingPage() {
             <Step4Photos formData={formData} onChange={updateFormData} onNext={goNext} onBack={goBack} />
           )}
           {currentStep === 5 && (
-            <StepPlaceholder title="Review & Publish" onBack={goBack} />
+            <Step5Review
+              formData={formData}
+              onBack={goBack}
+              goToStep={goToStep}
+              onSubmit={handleSubmit}
+              submitting={submitting}
+              submitError={submitError}
+            />
           )}
         </div>
       </div>
     </main>
-  );
-}
-
-function StepPlaceholder({
-  title,
-  onBack,
-}: {
-  title: string;
-  onBack?: () => void;
-}) {
-  return (
-    <div>
-      <h2 className="text-xl font-bold text-primary">{title}</h2>
-      <p className="mt-2 text-primary/60">This step will be implemented next.</p>
-      <StepNavButtons onBack={onBack} />
-    </div>
   );
 }
