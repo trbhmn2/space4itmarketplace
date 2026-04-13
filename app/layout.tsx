@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
+import { Lato } from "next/font/google";
 import AuthProvider from "@/components/AuthProvider";
+import Navbar from "@/components/Navbar";
 import "./globals.css";
+
+const lato = Lato({
+  subsets: ["latin"],
+  weight: ["300", "400", "700", "900"],
+  variable: "--font-lato",
+});
 
 export const metadata: Metadata = {
   title: "Space4It — Student Storage Marketplace",
@@ -14,21 +22,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={lato.variable}>
       <body className="font-lato antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <Navbar />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
