@@ -10,7 +10,6 @@ interface Host {
   capacity: number;
   rating: number;
   pricePerBox: number;
-  photoSeed: string;
 }
 
 const mockHosts: Host[] = [
@@ -21,7 +20,6 @@ const mockHosts: Host[] = [
     capacity: 12,
     rating: 4.9,
     pricePerBox: 24,
-    photoSeed: "emma",
   },
   {
     id: "2",
@@ -30,7 +28,6 @@ const mockHosts: Host[] = [
     capacity: 8,
     rating: 4.7,
     pricePerBox: 22,
-    photoSeed: "james",
   },
   {
     id: "3",
@@ -39,7 +36,6 @@ const mockHosts: Host[] = [
     capacity: 15,
     rating: 5.0,
     pricePerBox: 26,
-    photoSeed: "sofia",
   },
   {
     id: "4",
@@ -48,7 +44,6 @@ const mockHosts: Host[] = [
     capacity: 6,
     rating: 4.5,
     pricePerBox: 20,
-    photoSeed: "lucas",
   },
   {
     id: "5",
@@ -57,7 +52,6 @@ const mockHosts: Host[] = [
     capacity: 10,
     rating: 4.8,
     pricePerBox: 24,
-    photoSeed: "olivia",
   },
   {
     id: "6",
@@ -66,7 +60,6 @@ const mockHosts: Host[] = [
     capacity: 20,
     rating: 4.6,
     pricePerBox: 18,
-    photoSeed: "noah",
   },
 ];
 

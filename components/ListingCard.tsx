@@ -9,7 +9,6 @@ interface ListingCardProps {
   capacity: number;
   rating: number;
   pricePerBox: number;
-  photoSeed: string;
 }
 
 export default function ListingCard({
@@ -18,7 +17,6 @@ export default function ListingCard({
   capacity,
   rating,
   pricePerBox,
-  photoSeed,
 }: ListingCardProps) {
   const [showModal, setShowModal] = useState(false);
 
