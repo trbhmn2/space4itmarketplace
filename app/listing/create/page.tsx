@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
+import { createClient } from "@/lib/supabase";
 
 const STEP_LABELS = [
   "Space Details",
@@ -576,6 +577,238 @@ function Step3Availability({
   );
 }
 
+// ─── Step 4 — Photos ─────────────────────────────────────────────────
+
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_PHOTOS = 6;
+
+interface UploadingPhoto {
+  id: string;
+  file: File;
+  progress: number;
+  url?: string;
+  error?: string;
+}
+
+function Step4Photos({
+  formData,
+  onChange,
+  onNext,
+  onBack,
+}: {
+  formData: ListingFormData;
+  onChange: <K extends keyof ListingFormData>(key: K, value: ListingFormData[K]) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
+  const supabase = useMemo(() => createClient(), []);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState<UploadingPhoto[]>([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [bucketError, setBucketError] = useState(false);
+
+  const totalPhotos = formData.photoUrls.length + uploading.filter((u) => !u.error && !u.url).length;
+  const canAddMore = totalPhotos < MAX_PHOTOS;
+
+  const uploadFile = useCallback(
+    async (file: File) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        setUploading((prev) => [...prev, { id, file, progress: 0, error: "Unsupported file type (jpg, png, webp only)" }]);
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        setUploading((prev) => [...prev, { id, file, progress: 0, error: "File exceeds 5 MB limit" }]);
+        return;
+      }
+
+      setUploading((prev) => [...prev, { id, file, progress: 10 }]);
+
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+      setUploading((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, progress: 40 } : u))
+      );
+
+      const { error } = await supabase.storage
+        .from("listing-photos")
+        .upload(path, file, { contentType: file.type, upsert: false });
+
+      if (error) {
+        const isBucketMissing =
+          error.message?.toLowerCase().includes("bucket") ||
+          error.message?.toLowerCase().includes("not found") ||
+          error.message?.toLowerCase().includes("violates");
+        if (isBucketMissing) setBucketError(true);
+        setUploading((prev) =>
+          prev.map((u) => (u.id === id ? { ...u, progress: 0, error: error.message } : u))
+        );
+        return;
+      }
+
+      setUploading((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, progress: 80 } : u))
+      );
+
+      const { data: urlData } = supabase.storage
+        .from("listing-photos")
+        .getPublicUrl(path);
+
+      const publicUrl = urlData.publicUrl;
+
+      setUploading((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, progress: 100, url: publicUrl } : u))
+      );
+
+      onChange("photoUrls", [...formData.photoUrls, publicUrl]);
+
+      setTimeout(() => {
+        setUploading((prev) => prev.filter((u) => u.id !== id));
+      }, 600);
+    },
+    [supabase, formData.photoUrls, onChange]
+  );
+
+  const handleFiles = useCallback(
+    (files: FileList | File[]) => {
+      const fileArr = Array.from(files);
+      const remaining = MAX_PHOTOS - totalPhotos;
+      const batch = fileArr.slice(0, remaining);
+      batch.forEach((f) => uploadFile(f));
+    },
+    [totalPhotos, uploadFile]
+  );
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(false);
+    if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
+  };
+
+  const removePhoto = (url: string) => {
+    onChange(
+      "photoUrls",
+      formData.photoUrls.filter((u) => u !== url)
+    );
+  };
+
+  const removeUploadingError = (id: string) => {
+    setUploading((prev) => prev.filter((u) => u.id !== id));
+  };
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold text-primary">Photos</h2>
+      <p className="mt-1 text-sm text-primary/60">
+        Add up to {MAX_PHOTOS} photos of your storage space.
+      </p>
+
+      {bucketError && (
+        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-800">Storage not configured</p>
+          <p className="mt-1 text-xs text-amber-700">
+            The Supabase Storage bucket &quot;listing-photos&quot; is not set up yet. You can skip
+            this step and add photos later.
+          </p>
+        </div>
+      )}
+
+      {/* Thumbnails grid */}
+      {(formData.photoUrls.length > 0 || uploading.length > 0) && (
+        <div className="mt-5 grid grid-cols-3 gap-3">
+          {formData.photoUrls.map((url) => (
+            <div key={url} className="group relative aspect-square overflow-hidden rounded-lg border border-primary/10">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="Listing photo" className="h-full w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => removePhoto(url)}
+                className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+
+          {uploading.map((u) => (
+            <div key={u.id} className="relative flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-primary/10 bg-primary/5">
+              {u.error ? (
+                <div className="p-2 text-center">
+                  <p className="text-xs text-action font-medium truncate max-w-full">{u.error}</p>
+                  <button
+                    type="button"
+                    onClick={() => removeUploadingError(u.id)}
+                    className="mt-1 text-xs text-primary/50 underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full px-3">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-primary/10">
+                    <div
+                      className="h-full rounded-full bg-accent transition-all duration-300"
+                      style={{ width: `${u.progress}%` }}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-center text-xs text-primary/50">{u.progress}%</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Upload zone */}
+      {canAddMore && (
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+          onDragLeave={() => setDragActive(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`mt-5 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors ${
+            dragActive
+              ? "border-accent bg-accent/5"
+              : "border-primary/15 hover:border-accent/50 hover:bg-primary/[0.02]"
+          }`}
+        >
+          <svg className="h-8 w-8 text-primary/30" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.338-2.32 3 3 0 013.412 4.095A4.5 4.5 0 0118 19.5H6.75z" />
+          </svg>
+          <p className="mt-2 text-sm font-medium text-primary/60">
+            Drag & drop photos here, or <span className="text-accent font-semibold">click to browse</span>
+          </p>
+          <p className="mt-1 text-xs text-primary/40">
+            JPG, PNG, WebP — max 5 MB each — {MAX_PHOTOS - formData.photoUrls.length} remaining
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files) handleFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      )}
+
+      <StepNavButtons
+        onBack={onBack}
+        onNext={onNext}
+        nextLabel={formData.photoUrls.length === 0 ? "Skip for Now" : "Next"}
+      />
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────
 
 export default function CreateListingPage() {
@@ -619,7 +852,7 @@ export default function CreateListingPage() {
             <Step3Availability formData={formData} onChange={updateFormData} onNext={goNext} onBack={goBack} />
           )}
           {currentStep === 4 && (
-            <StepPlaceholder title="Photos" onNext={goNext} onBack={goBack} />
+            <Step4Photos formData={formData} onChange={updateFormData} onNext={goNext} onBack={goBack} />
           )}
           {currentStep === 5 && (
             <StepPlaceholder title="Review & Publish" onBack={goBack} />
@@ -632,18 +865,16 @@ export default function CreateListingPage() {
 
 function StepPlaceholder({
   title,
-  onNext,
   onBack,
 }: {
   title: string;
-  onNext?: () => void;
   onBack?: () => void;
 }) {
   return (
     <div>
       <h2 className="text-xl font-bold text-primary">{title}</h2>
       <p className="mt-2 text-primary/60">This step will be implemented next.</p>
-      <StepNavButtons onBack={onBack} onNext={onNext} />
+      <StepNavButtons onBack={onBack} />
     </div>
   );
 }
