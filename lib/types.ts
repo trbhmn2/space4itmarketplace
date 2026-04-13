@@ -39,6 +39,7 @@ export interface BookingRequest {
   id: string;
   storer_id: string;
   listing_id: string;
+  thread_id: string;
   standard_boxes: number;
   small_bulky: number;
   large_bulky: number;
@@ -53,14 +54,15 @@ export interface BookingRequest {
     | "confirmed"
     | "active"
     | "collection_due"
-    | "completed";
+    | "completed"
+    | "cancelled";
   created_at: string;
 }
 
 export interface Booking {
   id: string;
   request_id: string;
-  payment_status: "pending" | "deposit_paid" | "fully_paid" | "refunded";
+  payment_status: "pending" | "reserved" | "deposit_paid" | "fully_paid" | "refunded";
   payout_status: "pending" | "paid";
   confirmed_drop_off: string | null;
   confirmed_collection: string | null;
