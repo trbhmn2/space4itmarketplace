@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
   title: "Space4It — Student Storage Marketplace",
@@ -26,7 +27,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="font-lato antialiased">{children}</body>
+      <body className="font-lato antialiased">
+        <Navbar />
+        {children}
+      </body>
     </html>
   );
 }
