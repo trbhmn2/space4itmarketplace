@@ -11,6 +11,13 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type") as EmailOtpType | null;
   const next = searchParams.get("next") ?? "/dashboard/storer";
 
+  console.log("=== AUTH CONFIRM HIT ===");
+  console.log("token_hash:", token_hash);
+  console.log("type:", type);
+  console.log("next:", next);
+  console.log("user agent:", request.headers.get("user-agent"));
+  console.log("full url:", request.url);
+
   if (token_hash && type) {
     const cookieStore = cookies();
     const supabase = createServerClient(
@@ -31,14 +38,22 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       type,
       token_hash,
     });
 
+    console.log("verifyOtp data:", JSON.stringify(data, null, 2));
+    console.log("verifyOtp error:", error ? { message: error.message, status: error.status } : null);
+
     if (!error) {
+      console.log("SUCCESS — redirecting to:", next);
       return NextResponse.redirect(new URL(next, request.url));
     }
+
+    console.log("FAILED — redirecting to /auth?error=confirmation_failed");
+  } else {
+    console.log("MISSING PARAMS — token_hash or type is null");
   }
 
   return NextResponse.redirect(
