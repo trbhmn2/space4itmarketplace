@@ -55,10 +55,15 @@ function AuthPageInner() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
 
+  const [confirmedBanner, setConfirmedBanner] = useState(false);
+
   useEffect(() => {
     const urlError = searchParams.get("error");
     if (urlError && URL_ERROR_MESSAGES[urlError]) {
       setErrors({ general: URL_ERROR_MESSAGES[urlError] });
+    }
+    if (searchParams.get("confirmed") === "true") {
+      setConfirmedBanner(true);
     }
   }, [searchParams]);
 
@@ -232,6 +237,12 @@ function AuthPageInner() {
             Sign Up
           </button>
         </div>
+
+        {confirmedBanner && (
+          <div className="mt-4 rounded-lg bg-accent/10 px-4 py-3 text-sm text-accent">
+            <span className="font-semibold">Email confirmed!</span> Please log in to continue.
+          </div>
+        )}
 
         {errors.general && (
           <div className="mt-4 rounded-lg bg-action/10 px-4 py-3 text-sm text-action">
