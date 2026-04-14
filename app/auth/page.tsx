@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { Suspense, useState, useEffect, FormEvent } from "react";
 import { createClient } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type AuthMode = "login" | "signup";
 type Role = "storer" | "host" | "both";
@@ -30,14 +30,37 @@ function validatePassword(password: string): string | undefined {
   return undefined;
 }
 
+const URL_ERROR_MESSAGES: Record<string, string> = {
+  confirmation_failed:
+    "Email confirmation failed or the link has expired. Please sign up again.",
+  callback_failed:
+    "We couldn't verify your email. Please try again or sign up with a new account.",
+};
+
 export default function AuthPage() {
+  return (
+    <Suspense>
+      <AuthPageInner />
+    </Suspense>
+  );
+}
+
+function AuthPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const [mode, setMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
+
+  useEffect(() => {
+    const urlError = searchParams.get("error");
+    if (urlError && URL_ERROR_MESSAGES[urlError]) {
+      setErrors({ general: URL_ERROR_MESSAGES[urlError] });
+    }
+  }, [searchParams]);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
