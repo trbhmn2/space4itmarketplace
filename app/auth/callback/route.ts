@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard/storer";
+  const next = searchParams.get("next");
 
   if (code) {
     const cookieStore = cookies();
@@ -31,7 +31,14 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      if (next) {
+        return NextResponse.redirect(`${origin}${next}`);
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const isHost = user?.user_metadata?.role_host === true;
+      const dest = isHost ? "/dashboard/host" : "/dashboard/storer";
+      return NextResponse.redirect(`${origin}${dest}`);
     }
   }
 
