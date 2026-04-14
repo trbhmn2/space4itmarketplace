@@ -117,68 +117,36 @@ function ConfirmPageInner() {
   const router = useRouter();
 
   const [tokenHash] = useState(() => searchParams.get("token_hash") ?? "");
-  const [code] = useState(() => searchParams.get("code") ?? "");
-  const [type] = useState(() => (searchParams.get("type") ?? "") as EmailOtpType);
+  const [type] = useState(() => (searchParams.get("type") ?? "email") as EmailOtpType);
   const [email] = useState(() => searchParams.get("email") ?? "");
   const [state, setState] = useState<ConfirmState>("idle");
   const [redirectPath, setRedirectPath] = useState("/dashboard/storer");
 
-  const hasParams = code.length > 0 || tokenHash.length > 0;
+  const hasParams = tokenHash.length > 0;
 
   const handleConfirm = useCallback(async () => {
     if (!hasParams) return;
     setState("loading");
 
     const supabase = createClient();
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type,
+    });
 
-    console.log("=== CONFIRM BUTTON CLICKED ===");
-    console.log("Token hash:", tokenHash);
-    console.log("Token hash type:", typeof tokenHash);
-    console.log("Token hash length:", tokenHash.length);
-    console.log("Code param:", code);
-    console.log("OTP type:", type);
-
-    let user: { user_metadata?: Record<string, unknown> } | null = null;
-    let confirmError: { message: string; status?: number; code?: string } | null = null;
-
-    if (code) {
-      console.log("Using exchangeCodeForSession with code param");
-      const result = await supabase.auth.exchangeCodeForSession(code);
-      console.log("exchangeCodeForSession result:", JSON.stringify(result, null, 2));
-      user = result.data.user;
-      confirmError = result.error;
-    } else if (tokenHash.startsWith("pkce_")) {
-      console.log("Using exchangeCodeForSession with PKCE token");
-      const result = await supabase.auth.exchangeCodeForSession(tokenHash);
-      console.log("exchangeCodeForSession result:", JSON.stringify(result, null, 2));
-      user = result.data.user;
-      confirmError = result.error;
-    } else {
-      console.log("Using verifyOtp with token_hash");
-      const result = await supabase.auth.verifyOtp({
-        type,
-        token_hash: tokenHash,
-      });
-      console.log("verifyOtp result:", JSON.stringify(result, null, 2));
-      user = result.data.user;
-      confirmError = result.error;
-    }
-
-    if (confirmError) {
-      console.log("FINAL ERROR:", confirmError.message, confirmError.status, confirmError.code);
+    if (error) {
       setState("error");
       return;
     }
 
-    console.log("SUCCESS — user:", JSON.stringify(user?.user_metadata, null, 2));
-    const dest = getDashboardRoute(user);
+    const dest = getDashboardRoute(data.user);
     setRedirectPath(dest);
     setState("success");
 
     setTimeout(() => {
       router.push(dest);
     }, 2200);
-  }, [hasParams, tokenHash, code, type, router]);
+  }, [hasParams, tokenHash, type, router]);
 
   useEffect(() => {
     if (!hasParams) {
