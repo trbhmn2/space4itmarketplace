@@ -131,31 +131,46 @@ function ConfirmPageInner() {
 
     const supabase = createClient();
 
+    console.log("=== CONFIRM BUTTON CLICKED ===");
+    console.log("Token hash:", tokenHash);
+    console.log("Token hash type:", typeof tokenHash);
+    console.log("Token hash length:", tokenHash.length);
+    console.log("Code param:", code);
+    console.log("OTP type:", type);
+
     let user: { user_metadata?: Record<string, unknown> } | null = null;
-    let confirmError: { message: string } | null = null;
+    let confirmError: { message: string; status?: number; code?: string } | null = null;
 
     if (code) {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-      user = data.user;
-      confirmError = error;
+      console.log("Using exchangeCodeForSession with code param");
+      const result = await supabase.auth.exchangeCodeForSession(code);
+      console.log("exchangeCodeForSession result:", JSON.stringify(result, null, 2));
+      user = result.data.user;
+      confirmError = result.error;
     } else if (tokenHash.startsWith("pkce_")) {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(tokenHash);
-      user = data.user;
-      confirmError = error;
+      console.log("Using exchangeCodeForSession with PKCE token");
+      const result = await supabase.auth.exchangeCodeForSession(tokenHash);
+      console.log("exchangeCodeForSession result:", JSON.stringify(result, null, 2));
+      user = result.data.user;
+      confirmError = result.error;
     } else {
-      const { data, error } = await supabase.auth.verifyOtp({
+      console.log("Using verifyOtp with token_hash");
+      const result = await supabase.auth.verifyOtp({
         type,
         token_hash: tokenHash,
       });
-      user = data.user;
-      confirmError = error;
+      console.log("verifyOtp result:", JSON.stringify(result, null, 2));
+      user = result.data.user;
+      confirmError = result.error;
     }
 
     if (confirmError) {
+      console.log("FINAL ERROR:", confirmError.message, confirmError.status, confirmError.code);
       setState("error");
       return;
     }
 
+    console.log("SUCCESS — user:", JSON.stringify(user?.user_metadata, null, 2));
     const dest = getDashboardRoute(user);
     setRedirectPath(dest);
     setState("success");
@@ -163,7 +178,7 @@ function ConfirmPageInner() {
     setTimeout(() => {
       router.push(dest);
     }, 2200);
-  }, [hasParams, tokenHash, type, router]);
+  }, [hasParams, tokenHash, code, type, router]);
 
   useEffect(() => {
     if (!hasParams) {
