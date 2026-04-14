@@ -228,6 +228,8 @@ export default function AuthPage() {
               <input
                 id="login-email"
                 type="email"
+                name="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@st-andrews.ac.uk"
@@ -250,6 +252,8 @@ export default function AuthPage() {
               <input
                 id="login-password"
                 type="password"
+                name="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
@@ -313,6 +317,8 @@ export default function AuthPage() {
               <input
                 id="signup-name"
                 type="text"
+                name="name"
+                autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your full name"
@@ -335,6 +341,8 @@ export default function AuthPage() {
               <input
                 id="signup-email"
                 type="email"
+                name="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@st-andrews.ac.uk"
@@ -357,6 +365,8 @@ export default function AuthPage() {
               <input
                 id="signup-password"
                 type="password"
+                name="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Min. 8 characters"
