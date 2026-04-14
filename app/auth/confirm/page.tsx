@@ -117,29 +117,46 @@ function ConfirmPageInner() {
   const router = useRouter();
 
   const [tokenHash] = useState(() => searchParams.get("token_hash") ?? "");
+  const [code] = useState(() => searchParams.get("code") ?? "");
   const [type] = useState(() => (searchParams.get("type") ?? "") as EmailOtpType);
   const [email] = useState(() => searchParams.get("email") ?? "");
   const [state, setState] = useState<ConfirmState>("idle");
   const [redirectPath, setRedirectPath] = useState("/dashboard/storer");
 
-  const hasParams = tokenHash.length > 0 && type.length > 0;
+  const hasParams = code.length > 0 || tokenHash.length > 0;
 
   const handleConfirm = useCallback(async () => {
     if (!hasParams) return;
     setState("loading");
 
     const supabase = createClient();
-    const { data, error } = await supabase.auth.verifyOtp({
-      type,
-      token_hash: tokenHash,
-    });
 
-    if (error) {
+    let user: { user_metadata?: Record<string, unknown> } | null = null;
+    let confirmError: { message: string } | null = null;
+
+    if (code) {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      user = data.user;
+      confirmError = error;
+    } else if (tokenHash.startsWith("pkce_")) {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(tokenHash);
+      user = data.user;
+      confirmError = error;
+    } else {
+      const { data, error } = await supabase.auth.verifyOtp({
+        type,
+        token_hash: tokenHash,
+      });
+      user = data.user;
+      confirmError = error;
+    }
+
+    if (confirmError) {
       setState("error");
       return;
     }
 
-    const dest = getDashboardRoute(data.user);
+    const dest = getDashboardRoute(user);
     setRedirectPath(dest);
     setState("success");
 
