@@ -1,6 +1,8 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Routes that require authentication — everything else (/, /browse,
+// /onboarding, /auth, etc.) is public by default.
 const PROTECTED_PREFIXES = ["/dashboard", "/listing/create"];
 
 function isProtected(pathname: string): boolean {
