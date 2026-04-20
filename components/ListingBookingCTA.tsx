@@ -2,19 +2,40 @@
 
 import { useState } from "react";
 import BookingModal from "@/components/BookingModal";
+import ConfirmedBookingPopup from "@/components/ConfirmedBookingPopup";
 
 interface ListingBookingCTAProps {
   listingTitle: string;
   listingId: string;
   hostId: string;
+  hostName: string;
+  hostPhotoUrl: string | null;
+  availabilityStart: string;
+  availabilityEnd: string;
+  acceptsBulky: boolean;
 }
 
 export default function ListingBookingCTA({
   listingTitle,
   listingId,
   hostId,
+  hostName,
+  hostPhotoUrl,
+  availabilityStart,
+  availabilityEnd,
+  acceptsBulky,
 }: ListingBookingCTAProps) {
   const [showModal, setShowModal] = useState(false);
+  const [showConfirmed, setShowConfirmed] = useState(false);
+
+  const handleBookingConfirmed = () => {
+    setShowModal(false);
+    setShowConfirmed(true);
+  };
+
+  const handleConfirmedClose = () => {
+    setShowConfirmed(false);
+  };
 
   return (
     <>
@@ -31,6 +52,17 @@ export default function ListingBookingCTA({
         listingTitle={listingTitle}
         listingId={listingId}
         hostId={hostId}
+        hostName={hostName}
+        hostPhotoUrl={hostPhotoUrl}
+        availabilityStart={availabilityStart}
+        availabilityEnd={availabilityEnd}
+        acceptsBulky={acceptsBulky}
+        onBookingConfirmed={handleBookingConfirmed}
+      />
+
+      <ConfirmedBookingPopup
+        isOpen={showConfirmed}
+        onClose={handleConfirmedClose}
       />
     </>
   );
