@@ -38,7 +38,7 @@ export default function Navbar() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const isBrowsePage = pathname === "/browse";
+  const showNavLinks = pathname !== "/";
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -77,7 +77,7 @@ export default function Navbar() {
           <span className="text-xl font-black text-primary">Space4It</span>
         </Link>
 
-        {!isBrowsePage && (
+        {showNavLinks && (
           <div className="hidden items-center gap-8 md:flex">
             {navLinks.map((link) => (
               <Link key={link.href} href={link.href} className="text-sm font-medium text-primary/60 transition-colors hover:text-primary">
@@ -88,7 +88,7 @@ export default function Navbar() {
         )}
 
         {/* Desktop auth area */}
-        {!isBrowsePage && <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden items-center gap-3 md:flex">
           {loading ? (
             <div className="h-9 w-24 animate-pulse rounded-lg bg-primary/5" />
           ) : isLoggedIn ? (
@@ -161,37 +161,50 @@ export default function Navbar() {
               </Link>
             </>
           )}
-        </div>}
+        </div>
 
-        {/* Mobile hamburger */}
-        {!isBrowsePage && <button
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-primary transition-colors hover:bg-primary/5 md:hidden"
-          aria-label={mobileOpen ? "Close menu" : "Open menu"}
-        >
-          {mobileOpen ? (
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-            </svg>
-          )}
-        </button>}
+        {/* Mobile: minimal landing = inline auth; otherwise hamburger */}
+        {showNavLinks || isLoggedIn ? (
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-primary transition-colors hover:bg-primary/5 md:hidden"
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          >
+            {mobileOpen ? (
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+            )}
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 md:hidden">
+            <Link href="/auth" className="rounded-lg px-3 py-2 text-xs font-semibold text-primary/70 transition-colors hover:bg-primary/5 hover:text-primary sm:text-sm">
+              Log In
+            </Link>
+            <Link href="/onboarding" className="rounded-lg bg-action px-3 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-action/90 sm:text-sm">
+              Sign Up
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Mobile menu */}
-      {!isBrowsePage && mobileOpen && (
+      {mobileOpen && (showNavLinks || isLoggedIn) && (
         <div className="border-t border-primary/5 bg-background px-4 pb-4 pt-2 md:hidden">
-          <div className="space-y-1">
-            {navLinks.map((link) => (
-              <Link key={link.href} href={link.href} onClick={() => setMobileOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-medium text-primary/70 transition-colors hover:bg-primary/5 hover:text-primary">
-                {link.label}
-              </Link>
-            ))}
-          </div>
-          <div className="mt-3 border-t border-primary/5 pt-3">
+          {showNavLinks && (
+            <div className="space-y-1">
+              {navLinks.map((link) => (
+                <Link key={link.href} href={link.href} onClick={() => setMobileOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-medium text-primary/70 transition-colors hover:bg-primary/5 hover:text-primary">
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          )}
+          <div className={showNavLinks ? "mt-3 border-t border-primary/5 pt-3" : "pt-1"}>
             {isLoggedIn ? (
               <div className="space-y-1">
                 <div className="flex items-center gap-3 px-3 py-2">
