@@ -1,97 +1,635 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { createClient } from "@/lib/supabase";
-import SectionCard from "@/components/ui/SectionCard";
 import EmptyState from "@/components/ui/EmptyState";
-import StatusChip from "@/components/ui/StatusChip";
-import type { BookingRequest, Booking, Payment } from "@/lib/types";
 
-interface RequestRow extends BookingRequest {
-  listings: {
-    title: string;
-    area: string;
-    host_id: string;
-    users: { name: string };
-  };
+interface HostInfo {
+  name: string;
+  photo_url: string | null;
+  verified: boolean;
+  phone: string | null;
+  email: string;
 }
 
-interface BookingRow extends Booking {
-  booking_requests: {
-    listing_id: string;
-    drop_off_date: string;
-    collection_date: string;
-    standard_boxes: number;
-    small_bulky: number;
-    large_bulky: number;
-    bikes: number;
-    listings: {
-      title: string;
-      area: string;
-      users: { name: string };
-    };
-  };
+interface ListingInfo {
+  id: string;
+  title: string;
+  area: string;
+  photos: string[];
+  rules: string | null;
 }
 
-interface PaymentRow extends Payment {
-  bookings: {
-    booking_requests: {
-      listings: {
-        users: { name: string };
-      };
-    };
-  };
-}
-
-function formatItems(req: {
+interface BookingRequestData {
+  id: string;
+  storer_id: string;
+  listing_id: string;
   standard_boxes: number;
   small_bulky: number;
   large_bulky: number;
   bikes: number;
-}) {
-  const parts: string[] = [];
-  if (req.standard_boxes > 0) parts.push(`${req.standard_boxes} box${req.standard_boxes > 1 ? "es" : ""}`);
-  if (req.small_bulky > 0) parts.push(`${req.small_bulky} small bulky`);
-  if (req.large_bulky > 0) parts.push(`${req.large_bulky} large bulky`);
-  if (req.bikes > 0) parts.push(`${req.bikes} bike${req.bikes > 1 ? "s" : ""}`);
-  return parts.join(", ") || "No items";
+  drop_off_date: string;
+  collection_date: string;
+  notes: string | null;
+  status: string;
+  created_at: string;
+  listings: ListingInfo & {
+    host_id: string;
+    users: HostInfo;
+  };
 }
 
-function formatDate(dateStr: string) {
+interface BookingData {
+  id: string;
+  request_id: string;
+  payment_status: string;
+  created_at: string;
+}
+
+const PRICES = {
+  standard_boxes: 24,
+  small_bulky: 13,
+  large_bulky: 32,
+} as const;
+
+function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-GB", {
     day: "numeric",
-    month: "short",
+    month: "long",
     year: "numeric",
   });
 }
 
-function TableSkeleton({ rows = 3 }: { rows?: number }) {
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function DashboardSkeleton() {
   return (
-    <div className="space-y-3">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex animate-pulse gap-4">
-          <div className="h-4 w-24 rounded bg-primary/10" />
-          <div className="h-4 w-32 rounded bg-primary/5" />
-          <div className="h-4 w-20 rounded bg-primary/5" />
-          <div className="h-4 w-16 rounded bg-primary/10" />
+    <div className="space-y-6">
+      <div className="h-9 w-56 animate-pulse rounded-lg bg-primary/10" />
+      <div className="grid gap-6 lg:grid-cols-[1fr_0.82fr]">
+        <div className="animate-pulse rounded-xl border border-primary/10 bg-white p-6 shadow-sm">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-full bg-primary/10" />
+              <div className="space-y-2">
+                <div className="h-5 w-32 rounded bg-primary/10" />
+                <div className="h-4 w-24 rounded bg-primary/5" />
+              </div>
+            </div>
+            <div className="h-px bg-primary/10" />
+            <div className="space-y-3">
+              <div className="h-4 w-48 rounded bg-primary/5" />
+              <div className="h-4 w-40 rounded bg-primary/5" />
+              <div className="h-4 w-36 rounded bg-primary/5" />
+            </div>
+            <div className="h-px bg-primary/10" />
+            <div className="space-y-2">
+              <div className="h-4 w-44 rounded bg-primary/5" />
+              <div className="h-4 w-44 rounded bg-primary/5" />
+            </div>
+          </div>
         </div>
-      ))}
+        <div className="animate-pulse rounded-xl border border-primary/10 bg-white p-6 shadow-sm">
+          <div className="h-40 rounded-lg bg-primary/5" />
+          <div className="mt-4 space-y-3">
+            <div className="h-4 w-56 rounded bg-primary/5" />
+            <div className="h-4 w-48 rounded bg-primary/5" />
+            <div className="h-4 w-40 rounded bg-primary/5" />
+          </div>
+          <div className="mt-6 h-12 rounded-lg bg-primary/10" />
+        </div>
+      </div>
     </div>
   );
 }
 
-function CardSkeleton() {
+function HeadingDropdown() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
-    <div className="animate-pulse rounded-lg border border-primary/10 p-4">
-      <div className="flex items-start justify-between">
-        <div className="h-5 w-32 rounded bg-primary/10" />
-        <div className="h-6 w-20 rounded-full bg-primary/5" />
+    <div ref={ref} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex items-center gap-2 text-2xl font-bold text-primary md:text-3xl"
+      >
+        User Dashboard
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`mt-0.5 text-primary/50 transition-transform ${open ? "rotate-180" : ""}`}
+        >
+          <polyline points="6 8 10 12 14 8" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-2 w-48 rounded-lg border border-primary/10 bg-white py-1 shadow-lg">
+          <Link
+            href="/browse"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-primary/70 transition-colors hover:bg-primary/5 hover:text-primary"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            Browse Hosts
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface LeftPanelProps {
+  request: BookingRequestData;
+}
+
+function LeftPanel({ request }: LeftPanelProps) {
+  const host = request.listings.users;
+  const listing = request.listings;
+
+  const standardTotal = request.standard_boxes * PRICES.standard_boxes;
+  const smallBulkyTotal = request.small_bulky * PRICES.small_bulky;
+  const largeBulkyTotal = request.large_bulky * PRICES.large_bulky;
+  const totalCost = standardTotal + smallBulkyTotal + largeBulkyTotal;
+
+  return (
+    <div className="rounded-xl border border-primary/10 bg-white shadow-sm">
+      {/* Host Information */}
+      <div className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            {host.photo_url ? (
+              <img
+                src={host.photo_url}
+                alt={host.name}
+                className="h-12 w-12 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                {getInitials(host.name)}
+              </div>
+            )}
+            <div>
+              <h3 className="font-bold text-primary">{host.name}</h3>
+              {host.verified && (
+                <span className="mt-0.5 inline-block rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white">
+                  Verified Student Host
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => console.log("Change Host clicked — modal placeholder for Agent 4")}
+            className="text-sm font-semibold text-action hover:text-action/80"
+          >
+            Change Host
+          </button>
+        </div>
+        <p className="mt-2 text-sm text-primary/60">{listing.title}</p>
       </div>
-      <div className="mt-2 h-4 w-40 rounded bg-primary/5" />
-      <div className="mt-3 space-y-2">
-        <div className="h-3 w-36 rounded bg-primary/5" />
-        <div className="h-3 w-28 rounded bg-primary/5" />
+
+      <div className="mx-6 border-t border-primary/10" />
+
+      {/* Storage Needs */}
+      <div className="p-6">
+        <div className="flex items-start justify-between">
+          <h4 className="text-sm font-bold uppercase tracking-wider text-primary/50">
+            Storage Needs
+          </h4>
+          <button
+            type="button"
+            onClick={() => console.log("Modify storage needs — modal placeholder for Agent 4")}
+            className="text-sm font-semibold text-action hover:text-action/80"
+          >
+            Modify
+          </button>
+        </div>
+        <div className="mt-3 space-y-2">
+          {request.standard_boxes > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-primary/70">
+                Standard Boxes: {request.standard_boxes} × £{PRICES.standard_boxes}
+              </span>
+              <span className="font-medium text-primary">£{standardTotal}</span>
+            </div>
+          )}
+          {request.small_bulky > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-primary/70">
+                Small Bulky: {request.small_bulky} × £{PRICES.small_bulky}
+              </span>
+              <span className="font-medium text-primary">£{smallBulkyTotal}</span>
+            </div>
+          )}
+          {request.large_bulky > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-primary/70">
+                Large Bulky: {request.large_bulky} × £{PRICES.large_bulky}
+              </span>
+              <span className="font-medium text-primary">£{largeBulkyTotal}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between border-t border-primary/10 pt-2">
+            <span className="text-sm font-bold text-primary">Total Cost</span>
+            <span className="text-lg font-bold text-action">£{totalCost}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-6 border-t border-primary/10" />
+
+      {/* Storage Dates */}
+      <div className="p-6">
+        <div className="flex items-start justify-between">
+          <h4 className="text-sm font-bold uppercase tracking-wider text-primary/50">
+            Storage Dates
+          </h4>
+          <button
+            type="button"
+            onClick={() => console.log("Modify dates — modal placeholder for Agent 4")}
+            className="text-sm font-semibold text-action hover:text-action/80"
+          >
+            Modify
+          </button>
+        </div>
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center gap-2 text-sm">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-primary/40"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            <span className="text-primary/60">Drop-off:</span>
+            <span className="font-medium text-primary">
+              {formatDate(request.drop_off_date)}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-primary/40"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            <span className="text-primary/60">Pick-up:</span>
+            <span className="font-medium text-primary">
+              {formatDate(request.collection_date)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface RightPanelProps {
+  request: BookingRequestData;
+  booking: BookingData | null;
+  isPaid: boolean;
+  onPaymentComplete: () => void;
+}
+
+function RightPanel({ request, booking, isPaid, onPaymentComplete }: RightPanelProps) {
+  const [processing, setProcessing] = useState(false);
+  const supabase = useMemo(() => createClient(), []);
+  const host = request.listings.users;
+  const listing = request.listings;
+
+  const standardTotal = request.standard_boxes * PRICES.standard_boxes;
+  const smallBulkyTotal = request.small_bulky * PRICES.small_bulky;
+  const largeBulkyTotal = request.large_bulky * PRICES.large_bulky;
+  const totalCost = standardTotal + smallBulkyTotal + largeBulkyTotal;
+  const deposit = Math.ceil(totalCost * 0.2);
+  const balance = totalCost - deposit;
+
+  const listingPhoto =
+    listing.photos && listing.photos.length > 0 ? listing.photos[0] : null;
+
+  async function handlePayment() {
+    if (!booking) return;
+    setProcessing(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    const { error } = await supabase
+      .from("bookings")
+      .update({ payment_status: "paid" })
+      .eq("id", booking.id);
+
+    if (error) {
+      console.error("Payment update failed:", error);
+      setProcessing(false);
+      return;
+    }
+
+    setProcessing(false);
+    onPaymentComplete();
+  }
+
+  if (isPaid) {
+    return (
+      <div className="rounded-xl border border-primary/10 bg-white shadow-sm">
+        {/* Listing photo */}
+        <div className="overflow-hidden rounded-t-xl">
+          {listingPhoto ? (
+            <img
+              src={listingPhoto}
+              alt={listing.title}
+              className="h-48 w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-48 w-full items-center justify-center bg-gradient-to-br from-accent/20 to-primary/10">
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="text-primary/20"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4 p-6">
+          {/* Precise Location */}
+          <div>
+            <h4 className="text-sm font-bold uppercase tracking-wider text-primary/50">
+              Precise Location
+            </h4>
+            <p className="mt-1 text-sm font-medium text-primary">{listing.area}</p>
+          </div>
+
+          <div className="border-t border-primary/10" />
+
+          {/* Access Directions */}
+          <div>
+            <h4 className="text-sm font-bold uppercase tracking-wider text-primary/50">
+              Access Directions
+            </h4>
+            <p className="mt-1 text-sm text-primary/70">
+              {listing.rules || "No specific access instructions provided. Contact your host for details."}
+            </p>
+          </div>
+
+          <div className="border-t border-primary/10" />
+
+          {/* Contact Information */}
+          <div>
+            <h4 className="text-sm font-bold uppercase tracking-wider text-primary/50">
+              Contact Information
+            </h4>
+            <div className="mt-2 space-y-1.5">
+              {host.phone && (
+                <div className="flex items-center gap-2 text-sm">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-accent"
+                  >
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                  <span className="text-primary/70">{host.phone}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-sm">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-accent"
+                >
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                <span className="text-primary/70">{host.email}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-primary/10" />
+
+          {/* Payment Confirmed Badge */}
+          <div className="flex justify-center">
+            <span className="inline-flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Payment Confirmed
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // State A — payment not completed
+  return (
+    <div className="rounded-xl border border-primary/10 bg-white shadow-sm">
+      {/* Blurred placeholder */}
+      <div className="relative overflow-hidden rounded-t-xl">
+        <div className="h-48 w-full bg-gradient-to-br from-accent/30 via-primary/15 to-action/20 blur-[12px]" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="rounded-full bg-white/80 p-3 backdrop-blur-sm">
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-primary/60"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4 p-6">
+        {/* Info box */}
+        <div className="rounded-lg border border-primary/10 bg-primary/[0.03] p-4">
+          <div className="flex items-start gap-3">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mt-0.5 shrink-0 text-primary/50"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <p className="text-sm leading-relaxed text-primary/70">
+              Complete your payment to unlock precise location, access directions, and host contact information.
+            </p>
+          </div>
+        </div>
+
+        {/* Locked bullet list */}
+        <ul className="space-y-2.5">
+          {[
+            "Exact address and directions",
+            "Host phone number and email",
+            "Detailed access instructions",
+          ].map((item) => (
+            <li key={item} className="flex items-center gap-2.5 text-sm text-primary/40">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              {item}
+            </li>
+          ))}
+        </ul>
+
+        <div className="border-t border-primary/10" />
+
+        {/* Total Amount */}
+        <div className="text-center">
+          <p className="text-sm text-primary/50">Total Amount</p>
+          <p className="text-3xl font-bold text-action">£{totalCost}</p>
+        </div>
+
+        {/* Pay with Stripe button */}
+        <button
+          type="button"
+          onClick={handlePayment}
+          disabled={processing || !booking}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-action px-6 py-3.5 text-base font-bold text-white transition-colors hover:bg-action/90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {processing ? (
+            <>
+              <svg
+                className="h-5 w-5 animate-spin"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+              Processing…
+            </>
+          ) : (
+            "Pay with Stripe"
+          )}
+        </button>
+
+        {/* Payment split note */}
+        <p className="text-center text-xs text-primary/40">
+          *Pay 20% (£{deposit}) before drop-off and 80% (£{balance}) before pick-up
+        </p>
       </div>
     </div>
   );
@@ -101,9 +639,9 @@ export default function StorerDashboard() {
   const { user, loading: authLoading } = useAuth();
   const supabase = useMemo(() => createClient(), []);
 
-  const [requests, setRequests] = useState<RequestRow[]>([]);
-  const [bookings, setBookings] = useState<BookingRow[]>([]);
-  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [request, setRequest] = useState<BookingRequestData | null>(null);
+  const [booking, setBooking] = useState<BookingData | null>(null);
+  const [isPaid, setIsPaid] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -114,38 +652,47 @@ export default function StorerDashboard() {
     setError(null);
 
     try {
-      const [reqResult, bookResult, payResult] = await Promise.all([
-        supabase
-          .from("booking_requests")
-          .select(
-            "*, listings(title, area, host_id, users:users!listings_host_id_fkey(name))"
-          )
-          .eq("storer_id", user.id)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("bookings")
-          .select(
-            "*, booking_requests!inner(listing_id, drop_off_date, collection_date, standard_boxes, small_bulky, large_bulky, bikes, storer_id, listings(title, area, users:users!listings_host_id_fkey(name)))"
-          )
-          .eq("booking_requests.storer_id", user.id)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("payments")
-          .select(
-            "*, bookings!inner(booking_requests!inner(storer_id, listings(users:users!listings_host_id_fkey(name))))"
-          )
-          .eq("bookings.booking_requests.storer_id", user.id)
-          .order("created_at", { ascending: false }),
-      ]);
+      const { data: reqData, error: reqError } = await supabase
+        .from("booking_requests")
+        .select(
+          "id, storer_id, listing_id, standard_boxes, small_bulky, large_bulky, bikes, drop_off_date, collection_date, notes, status, created_at, listings(id, title, area, photos, rules, host_id, users:users!listings_host_id_fkey(name, photo_url, verified, phone, email))"
+        )
+        .eq("storer_id", user.id)
+        .in("status", ["confirmed", "accepted", "active", "collection_due"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
 
-      if (reqResult.error) throw reqResult.error;
-      if (bookResult.error) throw bookResult.error;
-      if (payResult.error) throw payResult.error;
+      if (reqError && reqError.code !== "PGRST116") {
+        throw reqError;
+      }
 
-      setRequests((reqResult.data ?? []) as RequestRow[]);
-      setBookings((bookResult.data ?? []) as BookingRow[]);
-      setPayments((payResult.data ?? []) as PaymentRow[]);
-    } catch {
+      if (!reqData) {
+        setRequest(null);
+        setBooking(null);
+        setLoading(false);
+        return;
+      }
+
+      setRequest(reqData as unknown as BookingRequestData);
+
+      const { data: bookingData, error: bookingError } = await supabase
+        .from("bookings")
+        .select("id, request_id, payment_status, created_at")
+        .eq("request_id", reqData.id)
+        .limit(1)
+        .single();
+
+      if (bookingError && bookingError.code !== "PGRST116") {
+        throw bookingError;
+      }
+
+      if (bookingData) {
+        setBooking(bookingData as BookingData);
+        setIsPaid(bookingData.payment_status === "paid" || bookingData.payment_status === "fully_paid");
+      }
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
       setError("Unable to load your dashboard data. Please try again.");
     } finally {
       setLoading(false);
@@ -161,227 +708,61 @@ export default function StorerDashboard() {
   }, [authLoading, user, fetchData]);
 
   if (authLoading || loading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <div className="h-8 w-64 animate-pulse rounded bg-primary/10" />
-          <div className="mt-2 h-4 w-80 animate-pulse rounded bg-primary/5" />
-        </div>
-        <SectionCard title="My Requests">
-          <TableSkeleton />
-        </SectionCard>
-        <SectionCard title="My Bookings">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <CardSkeleton />
-            <CardSkeleton />
-          </div>
-        </SectionCard>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (!user) {
     return (
-      <div className="space-y-6">
-        <EmptyState
-          title="Sign in required"
-          description="Please sign in to view your storage dashboard."
-          ctaText="Sign In"
-          ctaHref="/auth"
-        />
-      </div>
+      <EmptyState
+        title="Sign in required"
+        description="Please sign in to view your storage dashboard."
+        ctaText="Sign In"
+        ctaHref="/auth"
+      />
     );
   }
 
   if (error) {
     return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+        <p className="font-semibold text-red-700">{error}</p>
+        <button
+          onClick={fetchData}
+          className="mt-3 rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white hover:bg-action/90"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  if (!request) {
+    return (
       <div className="space-y-6">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-          <p className="font-semibold text-red-700">{error}</p>
-          <button
-            onClick={fetchData}
-            className="mt-3 rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white hover:bg-action/90"
-          >
-            Try Again
-          </button>
-        </div>
+        <HeadingDropdown />
+        <EmptyState
+          title="No bookings yet"
+          description="Browse hosts to find your perfect storage match."
+          ctaText="Browse Hosts"
+          ctaHref="/browse"
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-primary md:text-3xl">
-          My Storage Dashboard
-        </h1>
-        <p className="mt-1 text-primary/60">
-          Manage your storage requests and bookings
-        </p>
-      </div>
+      <HeadingDropdown />
 
-      {/* My Requests */}
-      <SectionCard title="My Requests" collapsible defaultOpen>
-        {requests.length === 0 ? (
-          <EmptyState
-            title="No requests yet"
-            description="You haven't made any storage requests yet."
-            ctaText="Browse Hosts"
-            ctaHref="/browse"
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-primary/10 text-xs uppercase tracking-wider text-primary/50">
-                  <th className="pb-3 pr-4 font-semibold">Host</th>
-                  <th className="pb-3 pr-4 font-semibold">Location</th>
-                  <th className="pb-3 pr-4 font-semibold">Items</th>
-                  <th className="pb-3 pr-4 font-semibold">Status</th>
-                  <th className="pb-3 font-semibold">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requests.map((req) => (
-                  <tr
-                    key={req.id}
-                    className="border-b border-primary/5 last:border-0"
-                  >
-                    <td className="py-3 pr-4 font-medium text-primary">
-                      {req.listings?.users?.name ?? "Unknown"}
-                    </td>
-                    <td className="py-3 pr-4 text-primary/70">
-                      {req.listings?.area ?? "—"}
-                    </td>
-                    <td className="py-3 pr-4 text-primary/70">
-                      {formatItems(req)}
-                    </td>
-                    <td className="py-3 pr-4">
-                      <StatusChip status={req.status} />
-                    </td>
-                    <td className="py-3 text-primary/60">
-                      {formatDate(req.created_at)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </SectionCard>
-
-      {/* My Bookings */}
-      <SectionCard title="My Bookings" collapsible defaultOpen>
-        {bookings.length === 0 ? (
-          <EmptyState
-            title="No active bookings"
-            description="No active bookings. Browse available hosts to get started."
-            ctaText="Browse Hosts"
-            ctaHref="/browse"
-          />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {bookings.map((booking) => {
-              const br = booking.booking_requests;
-              return (
-                <div
-                  key={booking.id}
-                  className="rounded-lg border border-primary/10 p-4"
-                >
-                  <div className="flex items-start justify-between">
-                    <h3 className="font-semibold text-primary">
-                      {br?.listings?.users?.name ?? "Unknown Host"}
-                    </h3>
-                    <StatusChip status={booking.payment_status} />
-                  </div>
-                  <p className="mt-1 text-sm text-primary/60">
-                    {br?.listings?.area ?? "—"}
-                  </p>
-                  <div className="mt-3 space-y-1 text-sm text-primary/70">
-                    <p>
-                      <span className="font-medium text-primary/80">
-                        Drop-off:
-                      </span>{" "}
-                      {br ? formatDate(br.drop_off_date) : "—"}
-                    </p>
-                    <p>
-                      <span className="font-medium text-primary/80">
-                        Pick-up:
-                      </span>{" "}
-                      {br ? formatDate(br.collection_date) : "—"}
-                    </p>
-                    <p>
-                      <span className="font-medium text-primary/80">
-                        Items:
-                      </span>{" "}
-                      {br ? formatItems(br) : "—"}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </SectionCard>
-
-      {/* Messages */}
-      <SectionCard title="Messages" collapsible defaultOpen={false}>
-        <EmptyState
-          title="No messages yet"
-          description="Messages will appear here once you start a booking."
+      <div className="grid gap-6 lg:grid-cols-[1fr_0.82fr]">
+        <LeftPanel request={request} />
+        <RightPanel
+          request={request}
+          booking={booking}
+          isPaid={isPaid}
+          onPaymentComplete={() => setIsPaid(true)}
         />
-      </SectionCard>
-
-      {/* Payment Receipts */}
-      <SectionCard title="Payment Receipts" collapsible defaultOpen={false}>
-        {payments.length === 0 ? (
-          <EmptyState
-            title="No payment history"
-            description="No payment history yet."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-primary/10 text-xs uppercase tracking-wider text-primary/50">
-                  <th className="pb-3 pr-4 font-semibold">Date</th>
-                  <th className="pb-3 pr-4 font-semibold">Host</th>
-                  <th className="pb-3 pr-4 font-semibold">Amount</th>
-                  <th className="pb-3 font-semibold">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((payment) => (
-                  <tr
-                    key={payment.id}
-                    className="border-b border-primary/5 last:border-0"
-                  >
-                    <td className="py-3 pr-4 text-primary/70">
-                      {formatDate(payment.created_at)}
-                    </td>
-                    <td className="py-3 pr-4 font-medium text-primary">
-                      {payment.bookings?.booking_requests?.listings?.users
-                        ?.name ?? "Unknown"}
-                    </td>
-                    <td className="py-3 pr-4 text-primary/70">
-                      £{payment.amount.toFixed(2)}
-                    </td>
-                    <td className="py-3">
-                      <StatusChip
-                        status={
-                          payment.refund_status === "none"
-                            ? "fully_paid"
-                            : "refunded"
-                        }
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </SectionCard>
+      </div>
     </div>
   );
 }
