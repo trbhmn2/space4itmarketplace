@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { createClient } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import UnreadBadge from "@/components/UnreadBadge";
 
 function getUserDisplay(user: { user_metadata?: Record<string, unknown>; email?: string } | null): {
@@ -37,6 +37,8 @@ const navLinks = [
 export default function Navbar() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const isBrowsePage = pathname === "/browse";
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -75,16 +77,18 @@ export default function Navbar() {
           <span className="text-xl font-black text-primary">Space4It</span>
         </Link>
 
-        <div className="hidden items-center gap-8 md:flex">
-          {navLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="text-sm font-medium text-primary/60 transition-colors hover:text-primary">
-              {link.label}
-            </Link>
-          ))}
-        </div>
+        {!isBrowsePage && (
+          <div className="hidden items-center gap-8 md:flex">
+            {navLinks.map((link) => (
+              <Link key={link.href} href={link.href} className="text-sm font-medium text-primary/60 transition-colors hover:text-primary">
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* Desktop auth area */}
-        <div className="hidden items-center gap-3 md:flex">
+        {!isBrowsePage && <div className="hidden items-center gap-3 md:flex">
           {loading ? (
             <div className="h-9 w-24 animate-pulse rounded-lg bg-primary/5" />
           ) : isLoggedIn ? (
@@ -151,10 +155,10 @@ export default function Navbar() {
               </Link>
             </>
           )}
-        </div>
+        </div>}
 
         {/* Mobile hamburger */}
-        <button
+        {!isBrowsePage && <button
           onClick={() => setMobileOpen(!mobileOpen)}
           className="flex h-10 w-10 items-center justify-center rounded-lg text-primary transition-colors hover:bg-primary/5 md:hidden"
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
@@ -168,11 +172,11 @@ export default function Navbar() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
             </svg>
           )}
-        </button>
+        </button>}
       </div>
 
       {/* Mobile menu */}
-      {mobileOpen && (
+      {!isBrowsePage && mobileOpen && (
         <div className="border-t border-primary/5 bg-background px-4 pb-4 pt-2 md:hidden">
           <div className="space-y-1">
             {navLinks.map((link) => (
