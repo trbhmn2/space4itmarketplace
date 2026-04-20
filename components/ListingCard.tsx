@@ -7,12 +7,14 @@ interface ListingCardProps {
 }
 
 export default function ListingCard({ listing }: ListingCardProps) {
-  const host = listing.users;
-  const initials = host.name
+  const rawHost = listing.users;
+  const host = Array.isArray(rawHost) ? rawHost[0] : rawHost;
+  const hostName = host?.name ?? "Host";
+  const initials = hostName
     .split(" ")
-    .map((n) => n[0])
+    .map((n: string) => n[0])
     .join("")
-    .toUpperCase();
+    .toUpperCase() || "H";
 
   const hasPhoto = listing.photos && listing.photos.length > 0;
   const firstPhoto = hasPhoto ? listing.photos[0] : null;
@@ -52,10 +54,10 @@ export default function ListingCard({ listing }: ListingCardProps) {
 
         {/* Host avatar */}
         <div className="absolute -bottom-6 left-4 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-[3px] border-white bg-primary shadow-md">
-          {host.photo_url ? (
+          {host?.photo_url ? (
             <Image
               src={host.photo_url}
-              alt={host.name}
+              alt={hostName}
               fill
               className="object-cover"
               sizes="56px"
@@ -65,7 +67,7 @@ export default function ListingCard({ listing }: ListingCardProps) {
           )}
         </div>
 
-        {host.verified && (
+        {host?.verified && (
           <div className="absolute right-3 top-3 rounded-full bg-green-500 px-2 py-0.5 text-[10px] font-bold text-white">
             Verified
           </div>
@@ -103,7 +105,7 @@ export default function ListingCard({ listing }: ListingCardProps) {
         </div>
 
         <p className="mt-1 text-xs text-primary/40">
-          Hosted by {host.name}
+          Hosted by {hostName}
         </p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-primary/50">

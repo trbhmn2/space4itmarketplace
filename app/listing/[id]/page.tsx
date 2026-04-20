@@ -21,13 +21,17 @@ export default async function ListingDetailPage({
   }
 
   const listing = data as ListingWithHost;
-  const host = listing.users;
+  const rawHost = listing.users;
+  const host = Array.isArray(rawHost) ? rawHost[0] : rawHost;
+  const hostName = host?.name ?? "Host";
+  const hostPhotoUrl = host?.photo_url ?? null;
+  const hostVerified = host?.verified ?? false;
 
-  const hostInitials = host.name
+  const hostInitials = hostName
     .split(" ")
-    .map((n) => n[0])
+    .map((n: string) => n[0])
     .join("")
-    .toUpperCase();
+    .toUpperCase() || "H";
 
   const startDate = new Date(listing.availability_start).toLocaleDateString(
     "en-GB",
@@ -208,8 +212,8 @@ export default async function ListingDetailPage({
                   {hostInitials}
                 </div>
                 <div>
-                  <p className="font-semibold text-primary">{host.name}</p>
-                  {host.verified && (
+                  <p className="font-semibold text-primary">{hostName}</p>
+                  {hostVerified && (
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600">
                       <svg
                         className="h-3.5 w-3.5"
@@ -234,8 +238,8 @@ export default async function ListingDetailPage({
                 listingTitle={listing.title}
                 listingId={listing.id}
                 hostId={listing.host_id}
-                hostName={host.name}
-                hostPhotoUrl={host.photo_url}
+                hostName={hostName}
+                hostPhotoUrl={hostPhotoUrl}
                 availabilityStart={listing.availability_start}
                 availabilityEnd={listing.availability_end}
                 acceptsBulky={listing.accepts_bulky}
