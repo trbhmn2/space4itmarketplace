@@ -23,6 +23,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={lato.variable}>
+      <head>
+        <link
+          href="https://fonts.googleapis.com/icon?family=Material+Icons"
+          rel="stylesheet"
+        />
+      </head>
       <body className="font-lato antialiased">
         <AuthProvider>
           <Navbar />
