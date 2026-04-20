@@ -129,6 +129,12 @@ export default function Navbar() {
                       My Listings
                     </Link>
                   )}
+                  <Link href="/browse" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-primary/80 transition-colors hover:bg-primary/5">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
+                      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    Browse Hosts
+                  </Link>
                   <Link href="/dashboard/messages" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-primary/80 transition-colors hover:bg-primary/5">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
                       <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
@@ -150,7 +156,7 @@ export default function Navbar() {
               <Link href="/auth" className="rounded-lg px-4 py-2 text-sm font-semibold text-primary/70 transition-colors hover:bg-primary/5 hover:text-primary">
                 Log In
               </Link>
-              <Link href="/auth" className="rounded-lg bg-action px-4 py-2 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:bg-action/90 hover:shadow-md">
+              <Link href="/onboarding" className="rounded-lg bg-action px-4 py-2 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:bg-action/90 hover:shadow-md">
                 Sign Up
               </Link>
             </>
@@ -215,7 +221,7 @@ export default function Navbar() {
                 <Link href="/auth" onClick={() => setMobileOpen(false)} className="rounded-lg border border-primary/10 py-2.5 text-center text-sm font-semibold text-primary transition-colors hover:bg-primary/5">
                   Log In
                 </Link>
-                <Link href="/auth" onClick={() => setMobileOpen(false)} className="rounded-lg bg-action py-2.5 text-center text-sm font-bold text-white transition-colors hover:bg-action/90">
+                <Link href="/onboarding" onClick={() => setMobileOpen(false)} className="rounded-lg bg-action py-2.5 text-center text-sm font-bold text-white transition-colors hover:bg-action/90">
                   Sign Up
                 </Link>
               </div>

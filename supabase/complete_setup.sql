@@ -108,9 +108,9 @@ ALTER TABLE public.payments         ENABLE ROW LEVEL SECURITY;
 
 -- ---- users ----
 
-CREATE POLICY "users_select_own"
+CREATE POLICY "users_select_public_profile"
   ON public.users FOR SELECT
-  USING (auth.uid() = id);
+  USING (true);
 
 CREATE POLICY "users_update_own"
   ON public.users FOR UPDATE

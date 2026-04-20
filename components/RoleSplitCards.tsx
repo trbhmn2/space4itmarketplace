@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function RoleSplitCards() {
+  const { user } = useAuth();
+  const isHost = user?.user_metadata?.role_host === true;
   return (
     <section className="mx-auto grid max-w-4xl gap-6 px-4 md:grid-cols-2">
       <div className="group relative overflow-hidden rounded-2xl border border-primary/10 bg-white p-8 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
@@ -56,7 +61,7 @@ export default function RoleSplitCards() {
           your own prices and availability.
         </p>
         <Link
-          href="/auth"
+          href={isHost ? "/listing/create" : "/auth?role=host"}
           className="mt-6 inline-block rounded-lg bg-accent px-8 py-3 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:bg-accent/90 hover:shadow-md"
         >
           Become a Host

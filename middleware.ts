@@ -1,8 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Routes that require authentication — everything else (/, /browse,
-// /onboarding, /auth, etc.) is public by default.
 const PROTECTED_PREFIXES = ["/dashboard", "/listing/create"];
 
 function isProtected(pathname: string): boolean {
@@ -44,10 +42,18 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (isProtected(request.nextUrl.pathname) && !user) {
+  const pathname = request.nextUrl.pathname;
+
+  if (isProtected(pathname) && !user) {
     const loginUrl = new URL("/auth", request.url);
-    loginUrl.searchParams.set("redirect", request.nextUrl.pathname);
+    loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (pathname === "/" && user) {
+    const isHost = user.user_metadata?.role_host === true;
+    const dest = isHost ? "/dashboard/host" : "/dashboard/storer";
+    return NextResponse.redirect(new URL(dest, request.url));
   }
 
   return response;
