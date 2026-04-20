@@ -230,7 +230,16 @@ export default async function ListingDetailPage({
               <p className="mb-4 text-sm text-primary/60">
                 Interested in this space? Send a booking request to the host.
               </p>
-              <ListingBookingCTA listingTitle={listing.title} listingId={listing.id} hostId={listing.host_id} />
+              <ListingBookingCTA
+                listingTitle={listing.title}
+                listingId={listing.id}
+                hostId={listing.host_id}
+                hostName={host.name}
+                hostPhotoUrl={host.photo_url}
+                availabilityStart={listing.availability_start}
+                availabilityEnd={listing.availability_end}
+                acceptsBulky={listing.accepts_bulky}
+              />
             </div>
           </div>
         </div>
