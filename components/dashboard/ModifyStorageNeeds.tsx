@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import type { BookingRequest } from "@/lib/types";
 import ItemCounter from "@/components/ui/ItemCounter";
+import { useModificationStatus } from "./useModificationStatus";
 
 const PRICES = {
   standard_boxes: 24,
@@ -21,8 +22,6 @@ const LABELS: Record<keyof typeof PRICES, string> = {
 
 type ItemKey = keyof typeof PRICES;
 const ITEM_KEYS: ItemKey[] = ["standard_boxes", "small_bulky", "large_bulky", "bikes"];
-
-type ViewState = "readonly" | "editing" | "pending";
 
 interface ModifyStorageNeedsProps {
   bookingRequest: BookingRequest;
@@ -49,51 +48,30 @@ export default function ModifyStorageNeeds({
     [bookingRequest]
   );
 
+  const { state: modState, pendingRequest } = useModificationStatus({
+    bookingRequest,
+    notesFilter: "Modification request: updated storage needs",
+    onApproved: onUpdate,
+  });
+
+  const [editing, setEditing] = useState(false);
   const [editCounts, setEditCounts] = useState<Record<ItemKey, number>>(originalCounts);
-  const [viewState, setViewState] = useState<ViewState>("readonly");
-  const [pendingRequest, setPendingRequest] = useState<BookingRequest | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const checkPendingOrApproved = useCallback(async () => {
-    const { data } = await supabase
-      .from("booking_requests")
-      .select("*")
-      .eq("storer_id", bookingRequest.storer_id)
-      .eq("listing_id", bookingRequest.listing_id)
-      .in("status", ["pending", "accepted"])
-      .ilike("notes", "%Modification request: updated storage needs%")
-      .gt("created_at", bookingRequest.created_at)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (data && data.length > 0) {
-      const latest = data[0] as BookingRequest;
-      if (latest.status === "pending") {
-        setPendingRequest(latest);
-        setViewState("pending");
-      } else if (latest.status === "accepted") {
-        setPendingRequest(null);
-        setViewState("readonly");
-        onUpdate();
-      }
-    }
-  }, [supabase, bookingRequest, onUpdate]);
-
-  useEffect(() => {
-    checkPendingOrApproved();
-  }, [checkPendingOrApproved]);
+  const isPending = modState === "pending";
+  const showReadonly = !editing;
 
   const handleEdit = () => {
     setEditCounts({ ...originalCounts });
     setError(null);
-    setViewState("editing");
+    setEditing(true);
   };
 
   const handleCancel = () => {
     setEditCounts({ ...originalCounts });
     setError(null);
-    setViewState("readonly");
+    setEditing(false);
   };
 
   const handleCountChange = (key: ItemKey, value: number) => {
@@ -104,7 +82,7 @@ export default function ModifyStorageNeeds({
     setLoading(true);
     setError(null);
 
-    const { data, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from("booking_requests")
       .insert({
         storer_id: bookingRequest.storer_id,
@@ -117,19 +95,16 @@ export default function ModifyStorageNeeds({
         collection_date: bookingRequest.collection_date,
         status: "pending",
         notes: "Modification request: updated storage needs",
-      })
-      .select()
-      .single();
+      });
 
     setLoading(false);
 
-    if (insertError || !data) {
-      setError(insertError?.message ?? "Failed to submit modification request.");
+    if (insertError) {
+      setError(insertError.message ?? "Failed to submit modification request.");
       return;
     }
 
-    setPendingRequest(data as BookingRequest);
-    setViewState("pending");
+    setEditing(false);
     onUpdate();
   };
 
@@ -140,7 +115,7 @@ export default function ModifyStorageNeeds({
     <section className="rounded-2xl border border-primary/10 bg-white p-5 transition-all sm:p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-base font-bold text-primary sm:text-lg">Storage Needs</h3>
-        {viewState === "readonly" && (
+        {showReadonly && !isPending && (
           <button
             type="button"
             onClick={handleEdit}
@@ -151,7 +126,7 @@ export default function ModifyStorageNeeds({
         )}
       </div>
 
-      {viewState === "editing" ? (
+      {editing ? (
         <div className="space-y-3">
           {ITEM_KEYS.map((key) => (
             <ItemCounter
@@ -165,14 +140,10 @@ export default function ModifyStorageNeeds({
 
           <div className="mt-4 flex items-center justify-between border-t border-primary/10 pt-4">
             <span className="text-sm font-semibold text-primary">Total Cost</span>
-            <span className="text-lg font-bold text-action">
-              £{editTotal}
-            </span>
+            <span className="text-lg font-bold text-action">£{editTotal}</span>
           </div>
 
-          {error && (
-            <p className="text-sm text-action">{error}</p>
-          )}
+          {error && <p className="text-sm text-action">{error}</p>}
 
           <div className="mt-4 flex items-center gap-3">
             <button
@@ -209,7 +180,7 @@ export default function ModifyStorageNeeds({
           {ITEM_KEYS.map((key) => {
             const originalVal = originalCounts[key];
             const pendingVal = pendingRequest?.[key];
-            const changed = viewState === "pending" && pendingVal !== undefined && pendingVal !== originalVal;
+            const changed = isPending && pendingVal !== undefined && pendingVal !== originalVal;
 
             return (
               <div
@@ -239,12 +210,10 @@ export default function ModifyStorageNeeds({
 
           <div className="mt-4 flex items-center justify-between border-t border-primary/10 pt-4">
             <span className="text-sm font-semibold text-primary">Total Cost</span>
-            <span className="text-lg font-bold text-action">
-              £{originalTotal}
-            </span>
+            <span className="text-lg font-bold text-action">£{originalTotal}</span>
           </div>
 
-          {viewState === "pending" && (
+          {isPending && (
             <div className="mt-4 rounded-xl bg-action/10 px-4 py-3">
               <p className="text-sm font-semibold text-action">
                 Modification request submitted — waiting for host approval

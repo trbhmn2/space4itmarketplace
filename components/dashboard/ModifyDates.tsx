@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import type { BookingRequest } from "@/lib/types";
-
-type ViewState = "readonly" | "editing" | "pending";
+import { useModificationStatus } from "./useModificationStatus";
 
 interface ModifyDatesProps {
   bookingRequest: BookingRequest;
@@ -30,55 +29,33 @@ export default function ModifyDates({
 }: ModifyDatesProps) {
   const supabase = useMemo(() => createClient(), []);
 
+  const { state: modState, pendingRequest } = useModificationStatus({
+    bookingRequest,
+    notesFilter: "Modification request: updated dates",
+    onApproved: onUpdate,
+  });
+
+  const [editing, setEditing] = useState(false);
   const [dropOff, setDropOff] = useState(toInputDate(bookingRequest.drop_off_date));
   const [collection, setCollection] = useState(toInputDate(bookingRequest.collection_date));
-  const [viewState, setViewState] = useState<ViewState>("readonly");
-  const [pendingRequest, setPendingRequest] = useState<BookingRequest | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const checkPendingOrApproved = useCallback(async () => {
-    const { data } = await supabase
-      .from("booking_requests")
-      .select("*")
-      .eq("storer_id", bookingRequest.storer_id)
-      .eq("listing_id", bookingRequest.listing_id)
-      .in("status", ["pending", "accepted"])
-      .ilike("notes", "%Modification request: updated dates%")
-      .gt("created_at", bookingRequest.created_at)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (data && data.length > 0) {
-      const latest = data[0] as BookingRequest;
-      if (latest.status === "pending") {
-        setPendingRequest(latest);
-        setViewState("pending");
-      } else if (latest.status === "accepted") {
-        setPendingRequest(null);
-        setViewState("readonly");
-        onUpdate();
-      }
-    }
-  }, [supabase, bookingRequest, onUpdate]);
-
-  useEffect(() => {
-    checkPendingOrApproved();
-  }, [checkPendingOrApproved]);
+  const isPending = modState === "pending";
 
   const handleEdit = () => {
     setDropOff(toInputDate(bookingRequest.drop_off_date));
     setCollection(toInputDate(bookingRequest.collection_date));
     setError(null);
     setValidationError(null);
-    setViewState("editing");
+    setEditing(true);
   };
 
   const handleCancel = () => {
     setError(null);
     setValidationError(null);
-    setViewState("readonly");
+    setEditing(false);
   };
 
   const validate = (): boolean => {
@@ -100,7 +77,7 @@ export default function ModifyDates({
     setLoading(true);
     setError(null);
 
-    const { data, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from("booking_requests")
       .insert({
         storer_id: bookingRequest.storer_id,
@@ -113,19 +90,16 @@ export default function ModifyDates({
         collection_date: collection,
         status: "pending",
         notes: "Modification request: updated dates",
-      })
-      .select()
-      .single();
+      });
 
     setLoading(false);
 
-    if (insertError || !data) {
-      setError(insertError?.message ?? "Failed to submit date modification request.");
+    if (insertError) {
+      setError(insertError.message ?? "Failed to submit date modification request.");
       return;
     }
 
-    setPendingRequest(data as BookingRequest);
-    setViewState("pending");
+    setEditing(false);
     onUpdate();
   };
 
@@ -134,11 +108,11 @@ export default function ModifyDates({
   const pendingDropOff = pendingRequest?.drop_off_date;
   const pendingCollection = pendingRequest?.collection_date;
   const dropOffChanged =
-    viewState === "pending" &&
+    isPending &&
     pendingDropOff !== undefined &&
     toInputDate(pendingDropOff) !== toInputDate(originalDropOff);
   const collectionChanged =
-    viewState === "pending" &&
+    isPending &&
     pendingCollection !== undefined &&
     toInputDate(pendingCollection) !== toInputDate(originalCollection);
 
@@ -146,7 +120,7 @@ export default function ModifyDates({
     <section className="rounded-2xl border border-primary/10 bg-white p-5 transition-all sm:p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-base font-bold text-primary sm:text-lg">Dates</h3>
-        {viewState === "readonly" && (
+        {!editing && !isPending && (
           <button
             type="button"
             onClick={handleEdit}
@@ -157,7 +131,7 @@ export default function ModifyDates({
         )}
       </div>
 
-      {viewState === "editing" ? (
+      {editing ? (
         <div className="space-y-4">
           <div>
             <label
@@ -197,12 +171,8 @@ export default function ModifyDates({
             />
           </div>
 
-          {validationError && (
-            <p className="text-sm text-action">{validationError}</p>
-          )}
-          {error && (
-            <p className="text-sm text-action">{error}</p>
-          )}
+          {validationError && <p className="text-sm text-action">{validationError}</p>}
+          {error && <p className="text-sm text-action">{error}</p>}
 
           <div className="flex items-center gap-3 pt-1">
             <button
@@ -276,7 +246,7 @@ export default function ModifyDates({
             </div>
           </div>
 
-          {viewState === "pending" && (
+          {isPending && (
             <div className="mt-4 rounded-xl bg-action/10 px-4 py-3">
               <p className="text-sm font-semibold text-action">
                 Date modification request submitted — waiting for host approval
