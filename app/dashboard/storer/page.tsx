@@ -276,12 +276,178 @@ function LeftPanel({ request }: LeftPanelProps) {
   );
 }
 
+interface RightPanelLockedProps {
+  request: BookingRequestData;
+  booking: BookingData | null;
+  onPaymentComplete: () => void;
+}
+
+function RightPanelLocked({ request, booking, onPaymentComplete }: RightPanelLockedProps) {
+  const [processing, setProcessing] = useState(false);
+  const supabase = useMemo(() => createClient(), []);
+
+  const standardTotal = request.standard_boxes * PRICES.standard_boxes;
+  const smallBulkyTotal = request.small_bulky * PRICES.small_bulky;
+  const largeBulkyTotal = request.large_bulky * PRICES.large_bulky;
+  const totalCost = standardTotal + smallBulkyTotal + largeBulkyTotal;
+  const deposit = Math.ceil(totalCost * 0.2);
+  const balance = totalCost - deposit;
+
+  async function handlePayment() {
+    if (!booking) return;
+    setProcessing(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    const { error } = await supabase
+      .from("bookings")
+      .update({ payment_status: "paid" })
+      .eq("id", booking.id);
+
+    if (error) {
+      console.error("Payment update failed:", error);
+      setProcessing(false);
+      return;
+    }
+
+    setProcessing(false);
+    onPaymentComplete();
+  }
+
+  return (
+    <div className="rounded-xl border border-primary/10 bg-white shadow-sm">
+      {/* Blurred placeholder */}
+      <div className="relative overflow-hidden rounded-t-xl">
+        <div className="h-48 w-full bg-gradient-to-br from-accent/30 via-primary/15 to-action/20 blur-[12px]" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="rounded-full bg-white/80 p-3 backdrop-blur-sm">
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-primary/60"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4 p-6">
+        {/* Info box */}
+        <div className="rounded-lg border border-primary/10 bg-primary/[0.03] p-4">
+          <div className="flex items-start gap-3">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mt-0.5 shrink-0 text-primary/50"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <p className="text-sm leading-relaxed text-primary/70">
+              Complete your payment to unlock precise location, access directions, and host contact information.
+            </p>
+          </div>
+        </div>
+
+        {/* Locked bullet list */}
+        <ul className="space-y-2.5">
+          {[
+            "Exact address and directions",
+            "Host phone number and email",
+            "Detailed access instructions",
+          ].map((item) => (
+            <li key={item} className="flex items-center gap-2.5 text-sm text-primary/40">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              {item}
+            </li>
+          ))}
+        </ul>
+
+        <div className="border-t border-primary/10" />
+
+        {/* Total Amount */}
+        <div className="text-center">
+          <p className="text-sm text-primary/50">Total Amount</p>
+          <p className="text-3xl font-bold text-action">£{totalCost}</p>
+        </div>
+
+        {/* Pay with Stripe button */}
+        <button
+          type="button"
+          onClick={handlePayment}
+          disabled={processing || !booking}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-action px-6 py-3.5 text-base font-bold text-white transition-colors hover:bg-action/90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {processing ? (
+            <>
+              <svg
+                className="h-5 w-5 animate-spin"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+              Processing…
+            </>
+          ) : (
+            "Pay with Stripe"
+          )}
+        </button>
+
+        {/* Payment split note */}
+        <p className="text-center text-xs text-primary/40">
+          *Pay 20% (£{deposit}) before drop-off and 80% (£{balance}) before pick-up
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function StorerDashboard() {
   const { user, loading: authLoading } = useAuth();
   const supabase = useMemo(() => createClient(), []);
 
   const [request, setRequest] = useState<BookingRequestData | null>(null);
   const [booking, setBooking] = useState<BookingData | null>(null);
+  const [isPaid, setIsPaid] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -329,6 +495,7 @@ export default function StorerDashboard() {
 
       if (bookingData) {
         setBooking(bookingData as BookingData);
+        setIsPaid(bookingData.payment_status === "paid" || bookingData.payment_status === "fully_paid");
       }
     } catch (err) {
       console.error("Dashboard fetch error:", err);
@@ -400,10 +567,17 @@ export default function StorerDashboard() {
       <div className="grid gap-6 lg:grid-cols-[1fr_0.82fr]">
         <LeftPanel request={request} />
 
-        {/* Right Panel — Location & Logistics (placeholder) */}
-        <div className="rounded-xl border border-primary/10 bg-white p-6 shadow-sm">
-          <p className="text-sm text-primary/50">Right panel — location &amp; logistics coming next</p>
-        </div>
+        {!isPaid ? (
+          <RightPanelLocked
+            request={request}
+            booking={booking}
+            onPaymentComplete={() => setIsPaid(true)}
+          />
+        ) : (
+          <div className="rounded-xl border border-primary/10 bg-white p-6 shadow-sm">
+            <p className="text-sm text-primary/50">Unlocked state coming next</p>
+          </div>
+        )}
       </div>
     </div>
   );
