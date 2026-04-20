@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase";
-import type { BookingRequest, Listing } from "@/lib/types";
+import type { BookingRequest } from "@/lib/types";
 
 interface HostOption {
   listing_id: string;
@@ -69,15 +69,24 @@ export default function ChangeHostModal({
         return;
       }
 
-      const options: HostOption[] = (data as Array<Listing & { users: { name: string } }>).map(
-        (listing) => ({
+      interface ListingRow {
+        id: string;
+        area: string;
+        availability_start: string;
+        availability_end: string;
+        users: { name: string } | { name: string }[];
+      }
+
+      const options: HostOption[] = (data as ListingRow[]).map((listing) => {
+        const hostUser = Array.isArray(listing.users) ? listing.users[0] : listing.users;
+        return {
           listing_id: listing.id,
-          host_name: listing.users?.name ?? "Unknown Host",
+          host_name: hostUser?.name ?? "Unknown Host",
           area: listing.area,
           availability_start: listing.availability_start,
           availability_end: listing.availability_end,
-        })
-      );
+        };
+      });
 
       setHosts(options);
     };
