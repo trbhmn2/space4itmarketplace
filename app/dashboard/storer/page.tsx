@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { createClient } from "@/lib/supabase";
 import EmptyState from "@/components/ui/EmptyState";
@@ -107,6 +108,70 @@ function DashboardSkeleton() {
           <div className="mt-6 h-12 rounded-lg bg-primary/10" />
         </div>
       </div>
+    </div>
+  );
+}
+
+function HeadingDropdown() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex items-center gap-2 text-2xl font-bold text-primary md:text-3xl"
+      >
+        User Dashboard
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`mt-0.5 text-primary/50 transition-transform ${open ? "rotate-180" : ""}`}
+        >
+          <polyline points="6 8 10 12 14 8" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-2 w-48 rounded-lg border border-primary/10 bg-white py-1 shadow-lg">
+          <Link
+            href="/browse"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-primary/70 transition-colors hover:bg-primary/5 hover:text-primary"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            Browse Hosts
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
@@ -674,9 +739,7 @@ export default function StorerDashboard() {
   if (!request) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-primary md:text-3xl">
-          User Dashboard
-        </h1>
+        <HeadingDropdown />
         <EmptyState
           title="No bookings yet"
           description="Browse hosts to find your perfect storage match."
@@ -689,9 +752,7 @@ export default function StorerDashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-primary md:text-3xl">
-        User Dashboard
-      </h1>
+      <HeadingDropdown />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_0.82fr]">
         <LeftPanel request={request} />
