@@ -47,6 +47,29 @@ interface BookingData {
   created_at: string;
 }
 
+const PRICES = {
+  standard_boxes: 24,
+  small_bulky: 13,
+  large_bulky: 32,
+} as const;
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
@@ -82,6 +105,171 @@ function DashboardSkeleton() {
             <div className="h-4 w-40 rounded bg-primary/5" />
           </div>
           <div className="mt-6 h-12 rounded-lg bg-primary/10" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface LeftPanelProps {
+  request: BookingRequestData;
+}
+
+function LeftPanel({ request }: LeftPanelProps) {
+  const host = request.listings.users;
+  const listing = request.listings;
+
+  const standardTotal = request.standard_boxes * PRICES.standard_boxes;
+  const smallBulkyTotal = request.small_bulky * PRICES.small_bulky;
+  const largeBulkyTotal = request.large_bulky * PRICES.large_bulky;
+  const totalCost = standardTotal + smallBulkyTotal + largeBulkyTotal;
+
+  return (
+    <div className="rounded-xl border border-primary/10 bg-white shadow-sm">
+      {/* Host Information */}
+      <div className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            {host.photo_url ? (
+              <img
+                src={host.photo_url}
+                alt={host.name}
+                className="h-12 w-12 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                {getInitials(host.name)}
+              </div>
+            )}
+            <div>
+              <h3 className="font-bold text-primary">{host.name}</h3>
+              {host.verified && (
+                <span className="mt-0.5 inline-block rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white">
+                  Verified Student Host
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => console.log("Change Host clicked — modal placeholder for Agent 4")}
+            className="text-sm font-semibold text-action hover:text-action/80"
+          >
+            Change Host
+          </button>
+        </div>
+        <p className="mt-2 text-sm text-primary/60">{listing.title}</p>
+      </div>
+
+      <div className="mx-6 border-t border-primary/10" />
+
+      {/* Storage Needs */}
+      <div className="p-6">
+        <div className="flex items-start justify-between">
+          <h4 className="text-sm font-bold uppercase tracking-wider text-primary/50">
+            Storage Needs
+          </h4>
+          <button
+            type="button"
+            onClick={() => console.log("Modify storage needs — modal placeholder for Agent 4")}
+            className="text-sm font-semibold text-action hover:text-action/80"
+          >
+            Modify
+          </button>
+        </div>
+        <div className="mt-3 space-y-2">
+          {request.standard_boxes > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-primary/70">
+                Standard Boxes: {request.standard_boxes} × £{PRICES.standard_boxes}
+              </span>
+              <span className="font-medium text-primary">£{standardTotal}</span>
+            </div>
+          )}
+          {request.small_bulky > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-primary/70">
+                Small Bulky: {request.small_bulky} × £{PRICES.small_bulky}
+              </span>
+              <span className="font-medium text-primary">£{smallBulkyTotal}</span>
+            </div>
+          )}
+          {request.large_bulky > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-primary/70">
+                Large Bulky: {request.large_bulky} × £{PRICES.large_bulky}
+              </span>
+              <span className="font-medium text-primary">£{largeBulkyTotal}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between border-t border-primary/10 pt-2">
+            <span className="text-sm font-bold text-primary">Total Cost</span>
+            <span className="text-lg font-bold text-action">£{totalCost}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-6 border-t border-primary/10" />
+
+      {/* Storage Dates */}
+      <div className="p-6">
+        <div className="flex items-start justify-between">
+          <h4 className="text-sm font-bold uppercase tracking-wider text-primary/50">
+            Storage Dates
+          </h4>
+          <button
+            type="button"
+            onClick={() => console.log("Modify dates — modal placeholder for Agent 4")}
+            className="text-sm font-semibold text-action hover:text-action/80"
+          >
+            Modify
+          </button>
+        </div>
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center gap-2 text-sm">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-primary/40"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            <span className="text-primary/60">Drop-off:</span>
+            <span className="font-medium text-primary">
+              {formatDate(request.drop_off_date)}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-primary/40"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            <span className="text-primary/60">Pick-up:</span>
+            <span className="font-medium text-primary">
+              {formatDate(request.collection_date)}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -210,12 +398,9 @@ export default function StorerDashboard() {
       </h1>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_0.82fr]">
-        {/* Left Panel — Booking Details */}
-        <div className="rounded-xl border border-primary/10 bg-white p-6 shadow-sm">
-          <p className="text-sm text-primary/50">Left panel — booking details coming next</p>
-        </div>
+        <LeftPanel request={request} />
 
-        {/* Right Panel — Location & Logistics */}
+        {/* Right Panel — Location & Logistics (placeholder) */}
         <div className="rounded-xl border border-primary/10 bg-white p-6 shadow-sm">
           <p className="text-sm text-primary/50">Right panel — location &amp; logistics coming next</p>
         </div>
