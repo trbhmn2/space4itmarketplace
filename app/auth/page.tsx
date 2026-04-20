@@ -50,7 +50,11 @@ function AuthPageInner() {
   const searchParams = useSearchParams();
   const supabase = createClient();
 
-  const [mode, setMode] = useState<AuthMode>("login");
+  const hasRoleParams =
+    searchParams.has("role_storer") || searchParams.has("role_host");
+  const [mode, setMode] = useState<AuthMode>(
+    hasRoleParams ? "signup" : "login"
+  );
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -70,8 +74,21 @@ function AuthPageInner() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<Role | "">("");
   const [termsAccepted, setTermsAccepted] = useState(false);
+
+  function deriveRoleFromParams(): Role | "" {
+    const rs = searchParams.get("role_storer");
+    const rh = searchParams.get("role_host");
+    if (rs === null && rh === null) return "";
+    const isStorer = rs === "true";
+    const isHost = rh === "true";
+    if (isStorer && isHost) return "both";
+    if (isStorer) return "storer";
+    if (isHost) return "host";
+    return "";
+  }
+
+  const [role, setRole] = useState<Role | "">(deriveRoleFromParams);
 
   function resetForm() {
     setName("");
