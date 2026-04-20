@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { ListingWithHost } from "@/lib/types";
 
 interface ListingCardProps {
@@ -13,13 +14,16 @@ export default function ListingCard({ listing }: ListingCardProps) {
     .join("")
     .toUpperCase();
 
+  const hasPhoto = listing.photos && listing.photos.length > 0;
+  const firstPhoto = hasPhoto ? listing.photos[0] : null;
+
   const startDate = new Date(listing.availability_start).toLocaleDateString(
     "en-GB",
-    { day: "numeric", month: "short" }
+    { day: "2-digit", month: "short", year: "numeric" }
   );
   const endDate = new Date(listing.availability_end).toLocaleDateString(
     "en-GB",
-    { day: "numeric", month: "short", year: "numeric" }
+    { day: "2-digit", month: "short", year: "numeric" }
   );
 
   return (
@@ -27,10 +31,40 @@ export default function ListingCard({ listing }: ListingCardProps) {
       href={`/listing/${listing.id}`}
       className="group block overflow-hidden rounded-2xl border border-primary/10 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
     >
-      <div className="relative h-36 bg-gradient-to-br from-accent/20 to-primary/10">
-        <div className="absolute -bottom-6 left-4 flex h-14 w-14 items-center justify-center rounded-full border-[3px] border-white bg-primary text-lg font-bold text-white shadow-md">
-          {initials}
+      {/* Image area */}
+      <div className="relative h-36 overflow-hidden">
+        {firstPhoto ? (
+          <Image
+            src={firstPhoto}
+            alt={listing.title}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-accent/20 to-primary/10">
+            <span className="text-2xl font-bold text-primary/30">
+              {initials}
+            </span>
+            <span className="mt-1 text-xs text-primary/25">{listing.area}</span>
+          </div>
+        )}
+
+        {/* Host avatar */}
+        <div className="absolute -bottom-6 left-4 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-[3px] border-white bg-primary shadow-md">
+          {host.photo_url ? (
+            <Image
+              src={host.photo_url}
+              alt={host.name}
+              fill
+              className="object-cover"
+              sizes="56px"
+            />
+          ) : (
+            <span className="text-lg font-bold text-white">{initials}</span>
+          )}
         </div>
+
         {host.verified && (
           <div className="absolute right-3 top-3 rounded-full bg-green-500 px-2 py-0.5 text-[10px] font-bold text-white">
             Verified
@@ -102,8 +136,8 @@ export default function ListingCard({ listing }: ListingCardProps) {
             </span>
           )}
           {listing.accepts_bulky && (
-            <span className="rounded-full bg-primary/5 px-2 py-0.5 text-[10px] font-semibold text-primary/60">
-              Bulky Items
+            <span className="rounded-full bg-action/10 px-2 py-0.5 text-[10px] font-semibold text-action">
+              Large Bulk
             </span>
           )}
           {listing.accepts_bikes && (
